@@ -26,7 +26,8 @@ struct ProfileMenuItemTests {
     @Test func freshProfileShowsEveryWindowWithItsResetInline() {
         let item = ProfileMenuItem.make(
             from: usage(.fresh, [("5h", 72.6, 4_320), ("7d", 30, 273_600), ("30d", 5, nil)]), now: now)
-        #expect(item.badge == "5h 72% ↻1h12m · 7d 30% ↻3d4h · 30d 5%")
+        #expect(item.badge == "5h 72% · 1h12m · 7d 30% · 3d4h · 30d 5%")
+        #expect(item.rowTitle == "\(item.title) — 5h 72% · 1h12m · 7d 30% · 3d4h · 30d 5%")
         #expect(item.message == nil)
         #expect(item.action == nil)
     }
@@ -66,7 +67,7 @@ struct ProfileMenuItemTests {
 
     @Test func problemKeepsTheLastKnownWindowsBesideIt() {
         let item = ProfileMenuItem.make(from: usage(.rateLimited(retryAt: .distantFuture), [("5h", 40, 600)]), now: now)
-        #expect(item.badge == "Rate limited · 5h 40% ↻10m")
+        #expect(item.badge == "Rate limited · 5h 40% · 10m")
     }
 
     @Test(arguments: [(ProfileState.notLoaded, "Loading…"), (.fresh, "No usage data")])

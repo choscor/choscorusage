@@ -1,8 +1,8 @@
 // Builds the text and action for one profile's row in the menu bar menu.
 import Foundation
 
-/// What the menu shows for a profile on a single row: a name beside the provider logo and a
-/// badge with every window, or a few words naming the problem.
+/// What the menu shows for a profile on a single row: a name beside the provider logo, followed
+/// by every window or a few words naming the problem.
 public struct ProfileMenuItem: Equatable, Sendable {
     /// The action that resolves a profile's problem.
     public enum Action: Equatable, Sendable {
@@ -14,8 +14,11 @@ public struct ProfileMenuItem: Equatable, Sendable {
 
     /// The display name without the provider prefix the logo already shows.
     public let title: String
-    /// Every window as `5h 72% ↻1h12m`, joined by ` · `, led by a short problem if there is one.
+    /// Every window as `5h 72% · 1h12m` (reset countdown last), joined by ` · `, led by a short problem.
     public let badge: String
+    /// The row's full text, `<title> — <badge>`. Menu-item badges are drawn at a fixed small font,
+    /// so the usage shares the title to render at the normal menu size.
+    public var rowTitle: String { "\(title) — \(badge)" }
     /// The state's full message when the profile is not healthy, for the row's tooltip.
     public let message: String?
     /// The action the row performs, if the user can resolve its state.
@@ -98,7 +101,7 @@ public struct ProfileMenuItem: Equatable, Sendable {
             guard let resetsAt = window.resetsAt else {
                 return used
             }
-            return "\(used) ↻\(CompactDuration.format(resetsAt.timeIntervalSince(now)))"
+            return "\(used) · \(CompactDuration.format(resetsAt.timeIntervalSince(now)))"
         }
         .joined(separator: " · ")
     }
