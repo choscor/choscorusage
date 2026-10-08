@@ -213,9 +213,11 @@ def python_checks():
     ruff = require_tool("ruff", install=INSTALL_PYTHON_TOOLS)
     run_command([ruff, "check", "scripts"])
     run_command([ruff, "format", "--check", "scripts"])
-    run_command(
-        [PYTHON, "-m", "unittest", "discover", "-s", "scripts/ci", "-p", "test_*.py"]
-    )
+    # Each suite imports its siblings by module name, so each needs its own discovery root.
+    for suite in ("scripts/ci", "scripts/release"):
+        run_command(
+            [PYTHON, "-m", "unittest", "discover", "-s", suite, "-p", "test_*.py"]
+        )
 
 
 def actionlint_tool():

@@ -20,7 +20,7 @@ python scripts/ci/quality.py --help
 | `architecture` | `scripts/ci/architecture.py`: the per-layer banned imports and identifiers from `CLAUDE.md`. |
 | `file-headers` | `scripts/ci/file_headers.py`: every Swift file opens with a one- or two-line `//` purpose comment that is not just the file name. |
 | `secrets-policy` | `scripts/ci/secrets_policy.py`: no `accessToken`, `access_token`, `refreshToken` or `Authorization` inside `print`, `Logger`, `os_log` or `NSLog` calls. |
-| `python` | `ruff check`, `ruff format --check`, and `unittest` discovery under `scripts/ci`. |
+| `python` | `ruff check`, `ruff format --check`, and `unittest` discovery under `scripts/ci` and `scripts/release`. |
 | `actionlint` | actionlint 1.7.7 over `.github/workflows`. |
 | `kit-tests` | `swift test --package-path Packages/ChoscorUsageKit` (Swift 6 mode, `-warnings-as-errors`). |
 | `app-build` | `xcodebuild … clean build test CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, logging to `build/xcodebuild.log`. The scheme's test action runs the three package test targets. |

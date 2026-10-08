@@ -48,10 +48,19 @@ class QualityCommandTest(unittest.TestCase):
                 ["ruff", "check", "scripts"],
                 ["ruff", "format", "--check"],
                 [quality.PYTHON, "-m", "unittest"],
+                [quality.PYTHON, "-m", "unittest"],
                 ["actionlint", "-color"],
                 ["swift", "test", "--package-path"],
             ],
         )
+
+    def test_python_stage_discovers_ci_and_release_tool_tests(self):
+        suites = [
+            command[command.index("-s") + 1]
+            for command in self.run_stage("python")
+            if "unittest" in command
+        ]
+        self.assertEqual(suites, ["scripts/ci", "scripts/release"])
 
     def test_full_adds_app_build_then_swiftlint_analyze(self):
         commands = self.run_stage("full")
