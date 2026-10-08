@@ -35,6 +35,18 @@ swift test --package-path Packages/ChoscorUsageKit
 
 Delete both to start over; the next launch runs profile discovery again.
 
+## App icon
+
+`design/app-icon.svg` is the only source for the icon: a white Lucide `gauge` on
+an orange gradient. After you edit it, regenerate the asset catalog icon set and
+commit both:
+
+```sh
+python3 scripts/release/render_icon.py
+```
+
+The script renders with AppKit, so it needs no extra tools.
+
 ## Releases
 
 Developer ID signing, notarization and the DMG are described in
