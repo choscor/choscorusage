@@ -52,8 +52,22 @@ public final class UsageStore {
     /// Visible profiles' usage, for the menu.
     public var visibleUsages: [ProfileUsage] { usages.filter { !$0.profile.isHidden } }
 
-    /// The menu bar summary.
-    public var summary: MenuBarSummary { MenuBarSummary.make(from: usages) }
+    /// The menu bar summary with countdowns measured from the clock's current time.
+    public var summary: MenuBarSummary { summary(at: dependencies.clock.now) }
+
+    /// The menu bar summary with countdowns measured from `now`, for a label that ticks.
+    public func summary(at now: Date) -> MenuBarSummary {
+        MenuBarSummary.make(from: usages, chosenProfileID: preferences.chosenProfileID, now: now)
+    }
+
+    /// The profile the menu bar shows in full, or `nil` when it shows the worst percentage.
+    public var chosenProfileID: UUID? { preferences.chosenProfileID }
+
+    /// Makes `id` the menu bar's profile, or goes back to the worst percentage if it already is.
+    /// The choice is saved with the preferences.
+    public func toggleChosenProfile(_ id: UUID) {
+        preferences.chosenProfileID = preferences.chosenProfileID == id ? nil : id
+    }
 
     /// Restores saved state (showing last good data immediately), runs discovery on first launch,
     /// and performs the launch refresh.

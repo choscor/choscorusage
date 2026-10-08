@@ -1,4 +1,4 @@
-// The menu bar item: a gauge glyph and the worst percentage, tinted at 80% and 95%.
+// The menu bar item: a gauge glyph and the chosen profile's badge or worst percentage, tinted at 80% and 95%.
 import AppKit
 import ChoscorUsageKit
 import SwiftUI

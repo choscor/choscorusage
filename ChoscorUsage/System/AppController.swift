@@ -10,6 +10,9 @@ final class AppController {
     let launchAtLogin = LaunchAtLogin()
     /// When a menu last began tracking; the menu measures countdowns and ages from it.
     private(set) var menuOpenedAt = Date.now
+    /// The time the menu bar label measures countdowns from, advanced every minute.
+    private(set) var labelNow = Date.now
+    @ObservationIgnored private var labelTicker: Task<Void, Never>?
     @ObservationIgnored private let notifier = NotificationDelivery()
     @ObservationIgnored private var wakeObserver: (any NSObjectProtocol)?
     @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
@@ -19,6 +22,7 @@ final class AppController {
         store = UsageStore(dependencies: .live(appVersion: version, notifier: notifier))
         observeWake()
         observeMenuOpening()
+        tickLabel()
         Task { await launch() }
     }
 
@@ -36,6 +40,18 @@ final class AppController {
             await notifier.requestAuthorization()
         }
         store.startAutomaticRefresh()
+    }
+
+    /// A chosen profile's badge shows reset countdowns, and the label only redraws when observed
+    /// state changes, so the clock is advanced at the countdowns' one-minute resolution.
+    private func tickLabel() {
+        weak let controller = self
+        labelTicker = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                controller?.labelNow = .now
+            }
+        }
     }
 
     private func observeWake() {

@@ -11,6 +11,7 @@ public struct PreferencesStore: @unchecked Sendable {
         static let interval = "refreshIntervalMinutes"
         static let thresholds = "thresholdAlertsEnabled"
         static let resets = "resetAlertsEnabled"
+        static let chosenProfile = "chosenProfileID"
     }
 
     /// Creates a store over `defaults`.
@@ -30,6 +31,7 @@ public struct PreferencesStore: @unchecked Sendable {
         if defaults.object(forKey: Key.resets) != nil {
             preferences.resetAlertsEnabled = defaults.bool(forKey: Key.resets)
         }
+        preferences.chosenProfileID = defaults.string(forKey: Key.chosenProfile).flatMap(UUID.init(uuidString:))
         return preferences
     }
 
@@ -38,5 +40,6 @@ public struct PreferencesStore: @unchecked Sendable {
         defaults.set(preferences.refreshInterval.rawValue, forKey: Key.interval)
         defaults.set(preferences.thresholdAlertsEnabled, forKey: Key.thresholds)
         defaults.set(preferences.resetAlertsEnabled, forKey: Key.resets)
+        defaults.set(preferences.chosenProfileID?.uuidString, forKey: Key.chosenProfile)
     }
 }

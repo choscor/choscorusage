@@ -10,7 +10,7 @@ struct ChoscorUsageApp: App {
         MenuBarExtra {
             UsageMenu(store: controller.store, now: controller.menuOpenedAt)
         } label: {
-            MenuBarLabel(summary: controller.store.summary)
+            MenuBarLabel(summary: controller.store.summary(at: controller.labelNow))
         }
         .menuBarExtraStyle(.menu)
 

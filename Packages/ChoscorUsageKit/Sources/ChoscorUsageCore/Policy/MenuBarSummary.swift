@@ -1,6 +1,8 @@
-// Computes the menu bar text: the worst shortest-window percentage across visible profiles.
+// Computes the menu bar text: a chosen profile's menu badge, or the worst shortest-window percentage.
+import Foundation
 
-/// What the menu bar item shows: `NN%` from the most-used shortest window, tinted by severity.
+/// What the menu bar item shows: the chosen profile's menu badge, or `NN%` from the most-used
+/// shortest window, tinted by severity.
 public struct MenuBarSummary: Equatable, Sendable {
     /// Severity color for the menu bar text.
     public enum Tint: Sendable {
@@ -12,14 +14,31 @@ public struct MenuBarSummary: Equatable, Sendable {
         case critical
     }
 
-    /// The displayed whole percentage, or `nil` when no visible profile has data.
+    /// The whole percentage that sets the tint, or `nil` when no visible profile has data.
     public let percent: Int?
-    /// `NN%`, or `—` without data.
+    /// The chosen profile's badge, `NN%`, or `—` without data.
     public let text: String
     /// Severity tint for `text`.
     public let tint: Tint
     /// VoiceOver label naming the profile and window that supplied the value.
     public let accessibilityLabel: String
+
+    /// Shows the visible profile `chosenProfileID` names exactly as its menu row's badge, with
+    /// countdowns from `now` and the tint of its most-used window; otherwise falls back to
+    /// ``make(from:)``, so a hidden or removed choice never blanks the menu bar. Pure; any thread.
+    public static func make(from usages: [ProfileUsage], chosenProfileID: UUID?, now: Date) -> Self {
+        guard let chosen = usages.first(where: { $0.id == chosenProfileID && !$0.profile.isHidden }) else {
+            return make(from: usages)
+        }
+        let badge = ProfileMenuItem.make(from: chosen, now: now).badge
+        let mostUsed = chosen.snapshot?.windows.map(\.usedPercent).max()
+        return Self(
+            percent: mostUsed.map { Int($0.rounded(.down)) },
+            text: badge,
+            tint: mostUsed.map(tint(for:)) ?? .normal,
+            accessibilityLabel: "\(chosen.profile.displayName): \(badge)"
+        )
+    }
 
     /// Summarizes visible profiles in user order. For each profile only its shortest window
     /// with data counts (Claude's `5h`; Codex's shortest returned window); the highest wins and

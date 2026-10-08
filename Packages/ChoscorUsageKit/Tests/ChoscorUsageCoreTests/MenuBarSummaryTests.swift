@@ -61,4 +61,23 @@ struct MenuBarSummaryTests {
         #expect(summary.percent == nil)
         #expect(summary.tint == .normal)
     }
+
+    @Test func aChosenProfileShowsItsMenuBadgeTintedByItsMostUsedWindow() throws {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let chosen = usage("Codex", order: 1, provider: .codex, [("5h", 12, 18_000), ("7d", 85, 604_800)])
+        let summary = MenuBarSummary.make(
+            from: [usage("Claude", order: 0, [("5h", 90, 18_000)]), chosen], chosenProfileID: chosen.id, now: now)
+        #expect(summary.text == ProfileMenuItem.make(from: chosen, now: now).badge)
+        #expect(summary.text == "5h 12% · 7d 85%")
+        #expect(summary.percent == 85)
+        #expect(summary.tint == .warning)
+        #expect(summary.accessibilityLabel == "Codex: 5h 12% · 7d 85%")
+    }
+
+    @Test func aChosenProfileThatIsHiddenOrGoneFallsBackToTheWorstWindow() {
+        let hidden = usage("B", order: 1, hidden: true, [("5h", 99, 18_000)])
+        let usages = [usage("A", order: 0, [("5h", 10, 18_000)]), hidden]
+        #expect(MenuBarSummary.make(from: usages, chosenProfileID: hidden.id, now: .now).text == "10%")
+        #expect(MenuBarSummary.make(from: usages, chosenProfileID: UUID(), now: .now).text == "10%")
+    }
 }

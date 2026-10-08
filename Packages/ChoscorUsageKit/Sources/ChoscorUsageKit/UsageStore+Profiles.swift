@@ -88,9 +88,12 @@ extension UsageStore {
         editProfiles { $0.move(fromOffsets: offsets, toOffset: destination) }
     }
 
-    /// Removes a profile and its saved data.
+    /// Removes a profile and its saved data, and stops showing it in the menu bar.
     public func remove(_ id: UUID) {
         editProfiles { $0.remove(id) }
+        if preferences.chosenProfileID == id {
+            preferences.chosenProfileID = nil
+        }
         discardData(for: id)
     }
 

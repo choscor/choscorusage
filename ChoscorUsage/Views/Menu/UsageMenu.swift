@@ -63,6 +63,8 @@ private struct ProfilesSection: View {
         ForEach(store.visibleUsages) { usage in
             ProfileMenu(
                 usage: usage, item: ProfileMenuItem.make(from: usage, now: now),
+                isChosen: store.chosenProfileID == usage.id,
+                toggleChosen: { store.toggleChosenProfile(usage.id) },
                 retry: { Task { await store.retry(usage.id) } }, openSettings: openSettings)
         }
     }
