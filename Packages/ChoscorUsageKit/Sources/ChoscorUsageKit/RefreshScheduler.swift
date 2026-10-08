@@ -1,11 +1,11 @@
-// Decides when a refresh runs: interval timer, debounced manual refresh, popover and wake.
+// Decides when a refresh runs: interval timer, debounced manual refresh, menu opens and wake.
 import ChoscorUsageCore
 import Foundation
 
 /// Refresh timing rules. Value type; the store owns one and consults it for every trigger.
 public struct RefreshScheduler: Sendable {
     private static let manualDebounce: TimeInterval = 10
-    private static let popoverStaleness: TimeInterval = 60
+    private static let menuStaleness: TimeInterval = 60
 
     /// The automatic interval; 5 minutes unless the user picks 1, 2 or 10.
     public var interval: RefreshInterval = .default
@@ -15,14 +15,14 @@ public struct RefreshScheduler: Sendable {
     public init() {}
 
     /// Returns whether `trigger` should refresh now, and records the refresh if so. Manual
-    /// refreshes run at most once per 10 s; popover opens refresh only data older than 60 s;
+    /// refreshes run at most once per 10 s; menu opens refresh only data older than 60 s;
     /// launch, timer, wake and retry always refresh.
     public mutating func begin(_ trigger: RefreshTrigger, now: Date) -> Bool {
         let age = lastRefresh.map { now.timeIntervalSince($0) } ?? .infinity
         let allowed: Bool
         switch trigger {
         case .manual: allowed = age >= Self.manualDebounce
-        case .popoverOpened: allowed = age > Self.popoverStaleness
+        case .menuOpened: allowed = age > Self.menuStaleness
         case .launch, .timer, .wake, .retry: allowed = true
         }
         if allowed {

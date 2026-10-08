@@ -6,7 +6,8 @@ resets. It tracks any number of profiles side by side. Licensed under the MIT Li
 
 - Lives only in the menu bar: a gauge and the highest percentage across your profiles,
   orange from 80% and red from 95%.
-- The popover lists every visible profile with all of its windows and reset countdowns.
+- A native menu lists every visible profile on one row, with its provider logo, each window's
+  percentage and reset countdown, and when the data was last updated.
 - Discovers `~/.claude*` and `~/.codex*` config directories, plus `CLAUDE_CONFIG_DIR`
   and `CODEX_HOME`, and asks before adding them.
 - Optional alerts when a window crosses 80% or 95% and when it resets; launch at login.

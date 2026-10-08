@@ -11,7 +11,7 @@ struct ProfileRow: View {
 
     var body: some View {
         HStack(alignment: .top) {
-            Image(systemName: ProviderGlyph.symbol(for: usage.profile.provider))
+            ProviderGlyph.image(for: usage.profile.provider)
                 .accessibilityLabel(usage.profile.provider.displayName)
             VStack(alignment: .leading, spacing: 2) {
                 TextField("Name", text: $name)

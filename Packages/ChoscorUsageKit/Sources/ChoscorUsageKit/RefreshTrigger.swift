@@ -6,10 +6,10 @@ public enum RefreshTrigger: Sendable {
     case launch
     /// The automatic interval elapsed.
     case timer
-    /// The popover's Refresh button.
+    /// The menu's Refresh Now item.
     case manual
-    /// The popover opened.
-    case popoverOpened
+    /// The menu bar menu opened.
+    case menuOpened
     /// The Mac woke from sleep.
     case wake
     /// The user pressed Retry on a profile that needs Keychain access.

@@ -1,4 +1,4 @@
-// The app entry point: a menu bar extra with a popover window and a Settings scene.
+// The app entry point: a menu bar extra with a native menu and a Settings scene.
 import ChoscorUsageKit
 import SwiftUI
 
@@ -8,11 +8,11 @@ struct ChoscorUsageApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(store: controller.store)
+            UsageMenu(store: controller.store, now: controller.menuOpenedAt)
         } label: {
             MenuBarLabel(summary: controller.store.summary)
         }
-        .menuBarExtraStyle(.window)
+        .menuBarExtraStyle(.menu)
 
         Settings {
             SettingsView(store: controller.store, launchAtLogin: controller.launchAtLogin)

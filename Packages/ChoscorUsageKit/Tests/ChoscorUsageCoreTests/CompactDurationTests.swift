@@ -1,4 +1,4 @@
-// Tests the compact countdown and age text shown in the popover.
+// Tests the compact countdown and age text shown in the menu.
 import Testing
 
 @testable import ChoscorUsageCore

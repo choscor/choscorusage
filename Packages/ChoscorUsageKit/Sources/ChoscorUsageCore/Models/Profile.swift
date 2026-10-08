@@ -9,7 +9,7 @@ public struct Profile: Codable, Equatable, Hashable, Sendable, Identifiable {
     public var provider: Provider
     /// Absolute config-directory path, stored exactly as entered or discovered.
     public var configDirectory: String
-    /// Name shown in the menu bar popover and notifications.
+    /// Name shown in the menu bar menu and notifications.
     public var displayName: String
     /// Position in the user's ordering; lower values come first.
     public var order: Int

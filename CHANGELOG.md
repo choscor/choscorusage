@@ -9,3 +9,6 @@
 - Threshold (80%, 95%) and reset notifications, launch at login, and a 1/2/5/10-minute
   refresh interval.
 - Codex falls back to its local session logs when the usage endpoint is unavailable.
+- The menu bar item opens a native macOS menu: one row per profile with its Claude or Codex
+  logo, then Add Profile…, Scan for Profiles…, Refresh Now, Settings… and Quit.
+- Add Profile detects whether a picked folder is a Claude or Codex config directory.

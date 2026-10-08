@@ -49,7 +49,7 @@ public final class UsageStore {
         }
     }
 
-    /// Visible profiles' usage, for the popover.
+    /// Visible profiles' usage, for the menu.
     public var visibleUsages: [ProfileUsage] { usages.filter { !$0.profile.isHidden } }
 
     /// The menu bar summary.
@@ -97,7 +97,7 @@ public final class UsageStore {
         timer = nil
     }
 
-    /// Refreshes if the scheduler allows `trigger` (manual is debounced to 10 s; popover opens
+    /// Refreshes if the scheduler allows `trigger` (manual is debounced to 10 s; menu opens
     /// refresh only data older than 60 s), then delivers notifications and saves results.
     public func refresh(_ trigger: RefreshTrigger) async {
         guard !isRefreshing, scheduler.begin(trigger, now: dependencies.clock.now) else {

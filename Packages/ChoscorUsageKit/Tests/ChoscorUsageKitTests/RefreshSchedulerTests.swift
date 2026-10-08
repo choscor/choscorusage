@@ -1,4 +1,4 @@
-// Tests refresh triggers: interval timer, manual debounce, popover staleness and wake.
+// Tests refresh triggers: interval timer, manual debounce, menu-open staleness and wake.
 import ChoscorUsageCore
 import ChoscorUsageTestSupport
 import Synchronization
@@ -26,13 +26,13 @@ struct RefreshSchedulerTests {
         #expect(begin(&scheduler, .manual))
     }
 
-    @Test func openingThePopoverRefreshesOnlyDataOlderThanSixtySeconds() {
+    @Test func openingTheMenuRefreshesOnlyDataOlderThanSixtySeconds() {
         var scheduler = RefreshScheduler()
-        #expect(begin(&scheduler, .popoverOpened))
+        #expect(begin(&scheduler, .menuOpened))
         clock.advance(by: .seconds(60))
-        #expect(!begin(&scheduler, .popoverOpened))
+        #expect(!begin(&scheduler, .menuOpened))
         clock.advance(by: .seconds(1))
-        #expect(begin(&scheduler, .popoverOpened))
+        #expect(begin(&scheduler, .menuOpened))
     }
 
     @Test func wakeTimerLaunchAndRetryAlwaysRefresh() {

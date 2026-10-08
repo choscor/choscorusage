@@ -1,7 +1,7 @@
-// Formats countdowns and ages compactly for the popover, such as `1h12m` and `3d4h`.
+// Formats countdowns and ages compactly for the menu, such as `1h12m` and `3d4h`.
 import Foundation
 
-/// Two-unit duration text that fits the popover's narrow columns.
+/// Two-unit duration text that fits a single menu line.
 public enum CompactDuration {
     private static let units: [(seconds: Int, suffix: String)] = [(86_400, "d"), (3_600, "h"), (60, "m")]
 

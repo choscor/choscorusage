@@ -11,8 +11,12 @@ struct CandidatesBanner: View {
             Text("Found \(store.candidates.count) profile\(store.candidates.count == 1 ? "" : "s")")
                 .font(.headline)
             ForEach(store.candidates, id: \.configDirectory) { candidate in
-                Label(candidate.displayName, systemImage: ProviderGlyph.symbol(for: candidate.provider))
-                    .font(.callout)
+                Label {
+                    Text(candidate.displayName)
+                } icon: {
+                    ProviderGlyph.image(for: candidate.provider)
+                }
+                .font(.callout)
             }
             HStack {
                 Button("Add All") { store.add(store.candidates) }

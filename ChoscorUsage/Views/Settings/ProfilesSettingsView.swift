@@ -1,5 +1,4 @@
 // The Profiles tab: reorder, rename, hide, remove, add, rescan and confirm candidates.
-import AppKit
 import ChoscorUsageKit
 import SwiftUI
 
@@ -33,12 +32,7 @@ private struct ProfilesToolbar: View {
 
     var body: some View {
         HStack {
-            Menu("Add…") {
-                ForEach(Provider.allCases, id: \.self) { provider in
-                    Button("\(provider.displayName) config directory…") { pickDirectory(for: provider) }
-                }
-            }
-            .fixedSize()
+            Button("Add…") { Task { await ProfileDirectoryPicker.pick(store: store) } }
             Button("Remove") {
                 if let selection {
                     store.remove(selection)
@@ -48,18 +42,6 @@ private struct ProfilesToolbar: View {
             .disabled(selection == nil)
             Spacer()
             Button("Rescan") { Task { await store.rescan() } }
-        }
-    }
-
-    private func pickDirectory(for provider: Provider) {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.showsHiddenFiles = true
-        panel.directoryURL = URL(filePath: NSHomeDirectory())
-        panel.prompt = "Add \(provider.displayName) Profile"
-        if panel.runModal() == .OK, let url = panel.url {
-            store.addProfile(provider: provider, directory: url.path(percentEncoded: false))
         }
     }
 }

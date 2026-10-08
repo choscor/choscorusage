@@ -80,6 +80,6 @@ tracking issue.
 
 ## Scope of evidence
 
-CI builds and runs unit tests; it does not show the menu bar, the popover, Keychain
+CI builds and runs unit tests; it does not show the menu bar, its menu, Keychain
 prompts or notifications. Visual and end-to-end behavior is checked by running the
 app with real profiles, and PRs say which was done.
