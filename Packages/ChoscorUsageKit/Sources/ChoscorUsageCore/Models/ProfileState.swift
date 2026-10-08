@@ -7,7 +7,8 @@ public enum ProfileState: Equatable, Sendable {
     case notLoaded
     /// The latest refresh succeeded.
     case fresh
-    /// The token is expired or rejected; the user must run the CLI to refresh it.
+    /// The token is expired or rejected; running the CLI in the profile renews it, and the next
+    /// refresh picks the new token up.
     case stale(Provider)
     /// The provider returned 429; automatic refreshes wait until `retryAt`.
     case rateLimited(retryAt: Date)
@@ -28,7 +29,12 @@ public enum ProfileState: Equatable, Sendable {
     public var message: String? {
         switch self {
         case .notLoaded, .fresh: nil
-        case .stale(.claude): "Token expired. Run `claude` in this profile to refresh."
+        // The user is still signed in: Claude Code renews its short-lived access token only while
+        // it runs, and ChoscorUsage must never call the refresh endpoint itself. Renewing rewrites
+        // the Keychain item, so macOS may ask again before ChoscorUsage can read the new token.
+        case .stale(.claude):
+            "Access token expired. Open Claude Code with this profile to renew it, "
+                + "then allow Keychain access if macOS asks."
         case .stale(.codex): "Run `codex login` in this profile."
         case .rateLimited: "Rate limited – retrying later"
         case .error(let detail): detail

@@ -5,7 +5,11 @@ import Testing
 
 struct ProfileStateTests {
     @Test(arguments: [
-        (ProfileState.stale(.claude), "Token expired. Run `claude` in this profile to refresh."),
+        (
+            ProfileState.stale(.claude),
+            "Access token expired. Open Claude Code with this profile to renew it, "
+                + "then allow Keychain access if macOS asks."
+        ),
         (.stale(.codex), "Run `codex login` in this profile."),
         (.apiKeyMode, "API key mode – no plan limits"),
         (.unsupportedResponse, "Usage format changed – update ChoscorUsage"),
