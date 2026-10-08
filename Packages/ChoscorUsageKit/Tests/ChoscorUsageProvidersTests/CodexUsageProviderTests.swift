@@ -176,7 +176,14 @@ struct CodexUsageProviderTests {
         #expect(reader.latestSnapshot(configDirectory: profile.configDirectory, now: clock.now) != nil)
     }
 
-
+    @Test func olderLogLinesResolveResetsInSecondsFromTheirTimestamp() throws {
+        let line =
+            #"{"timestamp":"2026-10-08T09:10:00.000Z","type":"event_msg","payload":{"type":"token_count","#
+            + #""rate_limits":{"primary":{"used_percent":12,"window_minutes":300,"resets_in_seconds":600}}}}"#
+        let entry = try #require(CodexLogLine.parse(Data(line.utf8)))
+        let timestamp = try #require(entry.timestamp)
+        #expect(entry.windows.first?.resetsAt == timestamp.addingTimeInterval(600))
+    }
 
     @Test func noSessionLogsMeansNoFallback() async throws {
         try signIn()
