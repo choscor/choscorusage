@@ -9,7 +9,8 @@ import Foundation
 /// `seven_day_sonnet`, each `{utilization: 0–100, resets_at: ISO 8601}` or `null`; a window whose
 /// `utilization` is `null` has no data yet and is omitted. Unknown fields
 /// are ignored; unknown top-level objects with that same shape become extra windows labelled
-/// with their key.
+/// with their key. The newer `limits[]` array and `extra_usage` are read by
+/// ``ClaudeLimitsDecoder``; a `limits[]` window replaces the flat window with the same ID.
 public enum ClaudeUsageDecoder {
     /// The body is not a JSON object or a window has unexpected types.
     public struct DecodingFailure: Error, Equatable {}
@@ -21,25 +22,38 @@ public enum ClaudeUsageDecoder {
         ("seven_day_sonnet", "7d Sonnet", 604_800),
     ]
 
-    /// Returns known windows in fixed order, then extra windows sorted by key. Throws
+    /// Keys handled elsewhere, never treated as extra window-shaped objects.
+    private static let reserved: Set<String> = ["limits", "extra_usage"]
+
+    /// Returns known windows in fixed order (each taken from `limits[]` when listed there), then
+    /// other `limits[]` windows, extra windows sorted by key, and `Extra`. Throws
     /// ``DecodingFailure`` when the response no longer matches.
     public static func decode(_ data: Data) throws(DecodingFailure) -> [UsageWindow] {
         guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw DecodingFailure()
         }
+        var limits = ClaudeLimitsDecoder.limitWindows(in: root)
         var windows: [UsageWindow] = []
         for entry in known {
+            if let index = limits.firstIndex(where: { $0.id == entry.key }) {
+                windows.append(limits.remove(at: index))
+                continue
+            }
             guard let object = root[entry.key] as? [String: Any], !(object["utilization"] is NSNull) else {
                 continue
             }
             windows.append(try window(entry.key, entry.label, .seconds(entry.seconds), object))
         }
-        let knownKeys = Set(known.map(\.key))
-        for key in root.keys.sorted() where !knownKeys.contains(key) {
+        windows += limits
+        let skipped = Set(known.map(\.key)).union(reserved).union(windows.map(\.id))
+        for key in root.keys.sorted() where !skipped.contains(key) {
             guard let object = root[key] as? [String: Any], isWindowShaped(object) else {
                 continue
             }
             windows.append(try window(key, key, nil, object))
+        }
+        if let extra = ClaudeLimitsDecoder.extraUsageWindow(in: root) {
+            windows.append(extra)
         }
         return windows
     }

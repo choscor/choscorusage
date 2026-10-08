@@ -36,4 +36,21 @@ struct ClaudeUsageDecoderTests {
         }
         #expect(throws: ClaudeUsageDecoder.DecodingFailure.self) { try ClaudeUsageDecoder.decode(Data("[]".utf8)) }
     }
+
+    @Test func theLimitsArrayWinsOverFlatKeysAndKeepsTheFixedOrder() throws {
+        let windows = try ClaudeUsageDecoder.decode(FixtureLoader.data("claude-usage-limits.json"))
+        #expect(
+            windows.map(\.id) == ["five_hour", "seven_day", "seven_day_fable", "limits.daily_burst", "extra_usage"])
+        #expect(windows.map(\.label) == ["5h", "7d", "7d Fable", "daily_burst", "Extra"])
+        #expect(windows.map(\.usedPercent) == [41, 21, 63, 7, 25])
+        #expect(windows.map(\.windowLength) == [.seconds(18_000), .seconds(604_800), .seconds(604_800), nil, nil])
+        #expect(windows[1].resetsAt == Date(timeIntervalSince1970: 1_791_763_200))
+        #expect(windows[2].resetsAt == Date(timeIntervalSince1970: 1_791_763_200))
+        #expect(windows[4].resetsAt == nil)
+    }
+
+    @Test func extraUsageIsShownOnlyWhenEnabled() throws {
+        let body = #"{"five_hour":null,"extra_usage":{"is_enabled":false,"utilization":90}}"#
+        #expect(try ClaudeUsageDecoder.decode(Data(body.utf8)).isEmpty)
+    }
 }
