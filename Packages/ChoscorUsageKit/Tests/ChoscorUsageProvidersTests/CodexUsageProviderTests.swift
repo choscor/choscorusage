@@ -10,6 +10,7 @@ struct CodexUsageProviderTests {
     private let home: TemporaryHome
     private let files: RecordingFileSystem
     private let transport = FakeTransport()
+    private let keychain = FakeKeychain()
     private let clock = FakeClock(now: Date(timeIntervalSince1970: 1_791_466_800))
     private let profile: Profile
 
@@ -20,7 +21,8 @@ struct CodexUsageProviderTests {
     }
 
     private var provider: CodexUsageProvider {
-        CodexUsageProvider(fileSystem: files, transport: transport, clock: clock, userAgent: "ChoscorUsage/0.1.0")
+        CodexUsageProvider(
+            fileSystem: files, keychain: keychain, transport: transport, clock: clock, userAgent: "ChoscorUsage/0.1.0")
     }
 
     private func signIn(_ fixture: String = "codex-auth-chatgpt.json") throws {
@@ -74,6 +76,36 @@ struct CodexUsageProviderTests {
 
     @Test func missingAuthFileIsCredentialsNotFound() async {
         #expect(await provider.fetch(profile) == .credentialsNotFound)
+    }
+
+    private var keyringItem: CodexKeychainItem {
+        CodexKeychainItem(codexHome: profile.configDirectory, home: home.path)
+    }
+
+    @Test func keyringStoredCredentialsAreReadWhenThereIsNoAuthFile() async throws {
+        keychain.set(
+            keyringItem.service, account: keyringItem.account,
+            .success(try FixtureLoader.data("codex-auth-chatgpt.json")))
+        transport.reply(.response(200, try FixtureLoader.data("codex-usage-5h-7d.json")), forHost: "chatgpt.com")
+        guard case .success = await provider.fetch(profile) else {
+            Issue.record("expected success from keyring credentials")
+            return
+        }
+        #expect(transport.requests.first?.headers["Authorization"] == "Bearer synthetic-access")
+        #expect(keychain.reads == ["Codex Auth#\(keyringItem.account)"])
+    }
+
+    @Test func anAuthFileMeansTheKeychainIsNeverRead() async throws {
+        try signIn()
+        transport.reply(.response(200, try FixtureLoader.data("codex-usage-5h-7d.json")), forHost: "chatgpt.com")
+        _ = await provider.fetch(profile)
+        #expect(keychain.reads.isEmpty)
+    }
+
+    @Test func aDeniedKeyringReadIsKeychainDeniedWithoutARequest() async {
+        keychain.set(keyringItem.service, account: keyringItem.account, .failure(.denied))
+        #expect(await provider.fetch(profile) == .keychainDenied)
+        #expect(transport.requests.isEmpty)
     }
 
     @Test func networkFailureFallsBackToTheNewestSessionLogRateLimits() async throws {
@@ -143,6 +175,8 @@ struct CodexUsageProviderTests {
             atPath: "\(home.path)/.codex/sessions/2026/10/08/rollout-2026-10-08T10-00-00-x.jsonl")
         #expect(reader.latestSnapshot(configDirectory: profile.configDirectory, now: clock.now) != nil)
     }
+
+
 
     @Test func noSessionLogsMeansNoFallback() async throws {
         try signIn()

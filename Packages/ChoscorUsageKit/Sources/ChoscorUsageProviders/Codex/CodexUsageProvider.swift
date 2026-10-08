@@ -5,25 +5,34 @@ import ChoscorUsageCore
 /// and undecodable responses. 401/403, 429 and API-key mode never use the fallback.
 public struct CodexUsageProvider: UsageProviding {
     private let fileSystem: any FileSystem
+    private let keychain: any KeychainReading
     private let transport: any HTTPTransport
     private let clock: any WallClock
     private let userAgent: String
 
     /// Creates a provider. `userAgent` is `ChoscorUsage/<version>`.
-    public init(fileSystem: any FileSystem, transport: any HTTPTransport, clock: any WallClock, userAgent: String) {
+    public init(
+        fileSystem: any FileSystem, keychain: any KeychainReading, transport: any HTTPTransport, clock: any WallClock,
+        userAgent: String
+    ) {
         self.fileSystem = fileSystem
+        self.keychain = keychain
         self.transport = transport
         self.clock = clock
         self.userAgent = userAgent
     }
 
-    /// Reads `auth.json`, requests usage once, and maps the result.
+    /// Reads `auth.json` (or the keyring item), requests usage once, and maps the result.
     public func fetch(_ profile: Profile) async -> UsageFetchOutcome {
         let token: String
         let accountID: String?
-        switch CodexCredentials.read(configDirectory: profile.configDirectory, fileSystem: fileSystem) {
+        let credentials = CodexCredentials.read(
+            configDirectory: profile.configDirectory, fileSystem: fileSystem, keychain: keychain)
+        switch credentials {
         case .notFound:
             return .credentialsNotFound
+        case .keychainDenied:
+            return .keychainDenied
         case .apiKeyMode:
             return .apiKeyMode
         case .chatGPT(let accessToken, let account):

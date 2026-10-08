@@ -13,16 +13,16 @@ public struct SecurityKeychainReader: KeychainReading {
     /// Creates a reader.
     public init() {}
 
-    /// Returns the item data for `service`. May present the system access prompt; Cancel or Deny
-    /// surfaces as ``KeychainError/denied``; reads
-    /// run one at a time.
-    public func genericPassword(service: String) throws(KeychainError) -> Data? {
-        let query: [CFString: Any] = [
+    /// Returns the item data for `service` and, if given, `account`. May present the system access
+    /// prompt; Cancel or Deny surfaces as ``KeychainError/denied``; reads run one at a time.
+    public func genericPassword(service: String, account: String?) throws(KeychainError) -> Data? {
+        var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
+        query[kSecAttrAccount] = account
         let (status, data) = Self.readLock.withLock { _ -> (OSStatus, Data?) in
             var result: CFTypeRef?
             let status = SecItemCopyMatching(query as CFDictionary, &result)

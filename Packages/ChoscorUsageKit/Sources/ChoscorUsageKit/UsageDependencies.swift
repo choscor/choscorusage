@@ -47,7 +47,8 @@ public struct UsageDependencies: Sendable {
         let claude = ClaudeUsageProvider(
             credentials: ClaudeCredentialReader(keychain: keychain, fileSystem: fileSystem),
             transport: transport, clock: clock, userAgent: userAgent)
-        let codex = CodexUsageProvider(fileSystem: fileSystem, transport: transport, clock: clock, userAgent: userAgent)
+        let codex = CodexUsageProvider(
+            fileSystem: fileSystem, keychain: keychain, transport: transport, clock: clock, userAgent: userAgent)
         var dependencies = Self(
             fileSystem: fileSystem, keychain: keychain, environment: ProcessEnvironment(), clock: clock,
             providers: [.claude: claude, .codex: codex], notifier: notifier,
