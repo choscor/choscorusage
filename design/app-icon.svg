@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <title>White Lucide gauge on an orange gradient</title>
+  <!-- Gauge paths: lucide-static 0.460.0 icons/gauge.svg (ISC), verified 2026-10-09. -->
+  <defs>
+    <linearGradient id="orange" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4511E"/>
+      <stop offset="0.48" stop-color="#FF8A18"/>
+      <stop offset="1" stop-color="#FFD05A"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="21" height="21" rx="4.6875" fill="url(#orange)"/>
+  <g transform="translate(3 3) scale(.75)" fill="none" stroke="#fff" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 14 4-4"/>
+    <path d="M3.34 19a10 10 0 1 1 17.32 0"/>
+  </g>
+</svg>
