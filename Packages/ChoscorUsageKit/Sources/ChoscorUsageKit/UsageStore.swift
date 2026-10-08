@@ -38,7 +38,9 @@ public final class UsageStore {
     public init(dependencies: UsageDependencies) {
         self.dependencies = dependencies
         persistence = UsagePersistence(fileSystem: dependencies.fileSystem)
-        refresher = UsageRefresher(providers: dependencies.providers, clock: dependencies.clock)
+        refresher = UsageRefresher(
+            providers: dependencies.providers, clock: dependencies.clock,
+            minimumSpacing: dependencies.minimumFetchSpacing)
     }
 
     /// Every profile's usage in user order; profiles not yet refreshed are `notLoaded`.
@@ -79,7 +81,8 @@ public final class UsageStore {
         profiles = ProfileList(restored.profiles ?? []).profiles
         ledger = restored.ledger
         refresher = UsageRefresher(
-            providers: dependencies.providers, clock: dependencies.clock, lastGood: restored.snapshots)
+            providers: dependencies.providers, clock: dependencies.clock, lastGood: restored.snapshots,
+            minimumSpacing: dependencies.minimumFetchSpacing)
         for profile in profiles {
             results[profile.id] = await refresher.usage(for: profile)
         }

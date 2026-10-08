@@ -3,7 +3,8 @@ import ChoscorUsageCore
 import Foundation
 import os
 
-/// Owns refresh bookkeeping: last good data, 429 backoff, and the Keychain-denied gate.
+/// Owns refresh bookkeeping: last good data, 429 backoff, per-provider spacing, and the
+/// Keychain-denied gate.
 ///
 /// Runs off the main actor so network, file and Keychain work never blocks the UI.
 public actor UsageRefresher {
@@ -12,6 +13,7 @@ public actor UsageRefresher {
         var snapshot: UsageSnapshot?
         var consecutiveRateLimits = 0
         var retryAt: Date?
+        var lastFetchedAt: Date?
     }
 
     private static let maximumConcurrentFetches = 4
@@ -19,18 +21,22 @@ public actor UsageRefresher {
 
     private let providers: [Provider: any UsageProviding]
     private let clock: any WallClock
+    private let minimumSpacing: [Provider: Duration]
     private var records: [UUID: Record] = [:]
     private var inFlight: Set<UUID> = []
     private var queuedRetries: [UUID: Profile] = [:]
     /// Removed profiles whose fetch was still running; their results are discarded.
     private var forgotten: Set<UUID> = []
 
-    /// Creates a refresher seeded with persisted last good snapshots.
+    /// Creates a refresher seeded with persisted last good snapshots. `minimumSpacing` is the
+    /// shortest time between two fetches of one profile per provider (see ``FetchSpacing``).
     public init(
-        providers: [Provider: any UsageProviding], clock: any WallClock, lastGood: [UUID: UsageSnapshot] = [:]
+        providers: [Provider: any UsageProviding], clock: any WallClock, lastGood: [UUID: UsageSnapshot] = [:],
+        minimumSpacing: [Provider: Duration] = [:]
     ) {
         self.providers = providers
         self.clock = clock
+        self.minimumSpacing = minimumSpacing
         records = lastGood.mapValues { Record(snapshot: $0) }
     }
 
@@ -46,16 +52,25 @@ public actor UsageRefresher {
     }
 
     /// Refreshes visible profiles, at most four at once. Skips profiles waiting out a 429
-    /// backoff and profiles whose Keychain access was denied (only ``retry(_:)`` prompts again).
+    /// backoff, profiles fetched within their provider's minimum spacing, and profiles whose
+    /// Keychain access was denied (only ``retry(_:)`` prompts again, and it ignores spacing).
     /// Returns the usage of every given profile in input order.
     public func refresh(_ profiles: [Profile]) async -> [ProfileUsage] {
         let now = clock.now
         let due = profiles.filter { profile in
             let record = records[profile.id] ?? Record()
             return !profile.isHidden && record.state != .keychainDenied && (record.retryAt.map { now >= $0 } ?? true)
+                && isSpacedOut(record, provider: profile.provider, now: now)
         }
         await fetch(due)
         return profiles.map(usage(for:))
+    }
+
+    private func isSpacedOut(_ record: Record, provider: Provider, now: Date) -> Bool {
+        guard let last = record.lastFetchedAt, let spacing = minimumSpacing[provider] else {
+            return true
+        }
+        return now.timeIntervalSince(last) >= TimeInterval(spacing.components.seconds)
     }
 
     /// Clears a Keychain denial and fetches `profile` immediately, which may prompt again. While
@@ -135,6 +150,7 @@ public actor UsageRefresher {
         }
         var record = records[profile.id] ?? Record()
         let now = clock.now
+        record.lastFetchedAt = now
         if outcome != .rateLimited {
             record.consecutiveRateLimits = 0
             record.retryAt = nil

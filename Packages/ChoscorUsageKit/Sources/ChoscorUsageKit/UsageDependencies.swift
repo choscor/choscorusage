@@ -19,6 +19,8 @@ public struct UsageDependencies: Sendable {
     public var notifier: any UsageNotifying
     /// UserDefaults-backed preferences.
     public var preferences: PreferencesStore
+    /// Shortest time between two fetches of one profile, per provider; none unless set.
+    public var minimumFetchSpacing: [Provider: Duration] = [:]
 
     /// Creates dependencies from explicit parts.
     public init(
@@ -46,9 +48,11 @@ public struct UsageDependencies: Sendable {
             credentials: ClaudeCredentialReader(keychain: keychain, fileSystem: fileSystem),
             transport: transport, clock: clock, userAgent: userAgent)
         let codex = CodexUsageProvider(fileSystem: fileSystem, transport: transport, clock: clock, userAgent: userAgent)
-        return Self(
+        var dependencies = Self(
             fileSystem: fileSystem, keychain: keychain, environment: ProcessEnvironment(), clock: clock,
             providers: [.claude: claude, .codex: codex], notifier: notifier,
             preferences: PreferencesStore(defaults: .standard))
+        dependencies.minimumFetchSpacing = FetchSpacing.live
+        return dependencies
     }
 }

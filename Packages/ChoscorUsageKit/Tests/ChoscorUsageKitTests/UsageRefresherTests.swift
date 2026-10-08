@@ -24,12 +24,12 @@ struct UsageRefresherTests {
         keychain.set(ClaudeKeychainService.name(forConfigDir: profile.configDirectory), .success(Data(json.utf8)))
     }
 
-    private func makeRefresher() -> UsageRefresher {
+    private func makeRefresher(minimumSpacing: [Provider: Duration] = [:]) -> UsageRefresher {
         let claude = ClaudeUsageProvider(
             credentials: ClaudeCredentialReader(
                 keychain: keychain, fileSystem: LocalFileSystem(homeDirectory: home.path)),
             transport: transport, clock: clock, userAgent: "ChoscorUsage/test")
-        return UsageRefresher(providers: [.claude: claude], clock: clock)
+        return UsageRefresher(providers: [.claude: claude], clock: clock, minimumSpacing: minimumSpacing)
     }
 
     private func usageBody(_ percent: Int) -> Data {
@@ -55,6 +55,20 @@ struct UsageRefresherTests {
             #expect(usage?.state == expected)
             #expect(usage?.snapshot?.windows.first?.usedPercent == 42, "last good data kept for \(status)")
         }
+    }
+
+    @Test func aProviderSpacingSkipsEarlierRefreshesButNotRetry() async {
+        let refresher = makeRefresher(minimumSpacing: [.claude: .seconds(180)])
+        transport.reply(.response(200, usageBody(10)), forHost: host)
+        _ = await refreshOnce(refresher)
+        transport.reply(.response(200, usageBody(20)), forHost: host)
+        clock.advance(by: .seconds(179))
+        #expect(await refreshOnce(refresher)?.snapshot?.windows.first?.usedPercent == 10)
+        #expect(transport.requests.count == 1)
+        clock.advance(by: .seconds(1))
+        #expect(await refreshOnce(refresher)?.snapshot?.windows.first?.usedPercent == 20)
+        transport.reply(.response(200, usageBody(30)), forHost: host)
+        #expect(await refresher.retry(profile).snapshot?.windows.first?.usedPercent == 30)
     }
 
     @Test func rateLimitBacksOffWithoutRequestsUntilTheRetryTime() async {
