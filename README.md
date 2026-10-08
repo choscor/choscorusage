@@ -28,9 +28,11 @@ deny it, the app stops asking until you press **Retry**.
 
 ## Downloads
 
-There are no binary releases yet. Signed and notarized builds with automatic updates are
-planned; until then, build from source (see [docs/BUILD.md](docs/BUILD.md)). Requires
-macOS 26 or later on Apple Silicon.
+Each release ships as a Developer ID signed and notarized DMG on the
+[Releases page](https://github.com/choscor/choscorusage/releases). Open the DMG and drag
+ChoscorUsage to Applications. The app does not update itself: to update, download the new
+DMG and replace the app. You can also build from source (see [docs/BUILD.md](docs/BUILD.md)).
+Requires macOS 26 or later on Apple Silicon.
 
 ## Development
 

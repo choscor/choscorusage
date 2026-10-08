@@ -35,7 +35,8 @@ swift test --package-path Packages/ChoscorUsageKit
 
 Delete both to start over; the next launch runs profile discovery again.
 
-## Not covered yet
+## Releases
 
-Developer ID signing, notarization, a DMG, Sparkle updates and GitHub Releases are
-deferred to a later release spec. Do not distribute local builds.
+Developer ID signing, notarization and the DMG are described in
+[RELEASE.md](RELEASE.md). The app has no auto-update channel. Do not distribute
+local builds.
