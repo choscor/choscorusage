@@ -6,6 +6,14 @@ import Foundation
 /// reads credentials or item data, so it never triggers a Keychain prompt.
 public struct ProfileDiscovery: Sendable {
     private static let claudeMarkers = [".credentials.json", "settings.json", "projects"]
+    // Credential and settings files identify a provider; `projects`, `sessions` and
+    // `config.toml` are generic enough to appear in unrelated folders, so they only break ties.
+    private static let strongMarkers: [Provider: [String]] = [
+        .claude: [".credentials.json", "settings.json"], .codex: ["auth.json"],
+    ]
+    private static let weakMarkers: [Provider: [String]] = [
+        .claude: ["projects"], .codex: ["config.toml", "sessions"],
+    ]
 
     private let fileSystem: any FileSystem
 
@@ -58,6 +66,34 @@ public struct ProfileDiscovery: Sendable {
         }
         let suffix = rest.trimmingCharacters(in: CharacterSet(charactersIn: "-_. "))
         return suffix.isEmpty ? provider.displayName : "\(provider.displayName) · \(suffix)"
+    }
+
+    /// Detects which CLI owns the directory at `path` (standardized, absolute). The first rule
+    /// that names exactly one provider wins: credential or settings files, then generic folders,
+    /// then a folder name containing `claude` or `codex`. Returns `nil` for the home folder, a
+    /// missing directory or no clear answer. Reads directory metadata only; call off the main actor.
+    public func provider(forDirectory path: String) -> Provider? {
+        let home = ConfigPath.standardized(fileSystem.homeDirectory, home: fileSystem.homeDirectory)
+        guard path != home, fileSystem.isDirectory(atPath: path) else {
+            return nil
+        }
+        let name = (path.split(separator: "/").last ?? "").lowercased()
+        let rules: [(Provider) -> Bool] = [
+            { hasMarker(Self.strongMarkers[$0] ?? [], in: path) },
+            { hasMarker(Self.weakMarkers[$0] ?? [], in: path) },
+            { name.contains($0.rawValue) },
+        ]
+        for rule in rules {
+            let matches = Provider.allCases.filter(rule)
+            if matches.count == 1 {
+                return matches.first
+            }
+        }
+        return nil
+    }
+
+    private func hasMarker(_ markers: [String], in path: String) -> Bool {
+        markers.contains { fileSystem.fileExists(atPath: "\(path)/\($0)") }
     }
 
     private func hasClaudeMarker(_ path: String) -> Bool {

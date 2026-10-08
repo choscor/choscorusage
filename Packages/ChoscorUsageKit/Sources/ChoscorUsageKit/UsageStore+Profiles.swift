@@ -15,11 +15,14 @@ extension UsageStore {
         }.value
     }
 
-    /// Adds confirmed candidates and removes them from the pending list.
+    /// Adds confirmed candidates and removes them from the pending list. A candidate whose folder
+    /// is already tracked (added by hand after the scan) is skipped, so no Keychain item is read
+    /// twice per cycle.
     public func add(_ confirmed: [DiscoveredProfile]) {
         let before = Set(profiles.map(\.id))
+        var tracked = Set(profiles.map { standardized($0.configDirectory) })
         editProfiles { list in
-            for candidate in confirmed {
+            for candidate in confirmed where tracked.insert(standardized(candidate.configDirectory)).inserted {
                 list.append(
                     provider: candidate.provider, directory: candidate.configDirectory,
                     displayName: candidate.displayName)
@@ -27,6 +30,11 @@ extension UsageStore {
         }
         candidates.removeAll { confirmed.contains($0) }
         fetchSoon(Set(profiles.map(\.id)).subtracting(before))
+    }
+
+    /// Drops the given candidates without adding them; others stay pending.
+    public func dismiss(_ dismissed: [DiscoveredProfile]) {
+        candidates.removeAll { dismissed.contains($0) }
     }
 
     /// Drops all pending candidates without adding them.
@@ -53,7 +61,7 @@ extension UsageStore {
         editProfiles { $0.update(id) { $0.displayName = trimmed } }
     }
 
-    /// Hides or shows a profile in the popover and summary; a shown profile is fetched now.
+    /// Hides or shows a profile in the menu and summary; a shown profile is fetched now.
     public func setHidden(_ id: UUID, _ hidden: Bool) {
         editProfiles { $0.update(id) { $0.isHidden = hidden } }
         if !hidden {
@@ -101,5 +109,41 @@ extension UsageStore {
             await previous?.value
             try? await persistence.save(profiles: snapshot)
         }
+    }
+}
+
+/// What happened when the user picked a folder to add as a profile.
+public enum AddProfileOutcome: Equatable, Sendable {
+    /// The folder was added as this profile.
+    case added(Profile)
+    /// The folder was already tracked as this profile; nothing changed.
+    case alreadyAdded(Profile)
+    /// The folder looks like neither a Claude nor a Codex config directory; nothing changed.
+    case unrecognized
+}
+
+extension UsageStore {
+    /// Adds a folder the user picked, detecting whether it belongs to Claude or Codex.
+    /// Main actor; the folder's contents are inspected off it.
+    public func addProfile(directory: String) async -> AddProfileOutcome {
+        let fileSystem = dependencies.fileSystem
+        let standard = ConfigPath.standardized(directory, home: fileSystem.homeDirectory)
+        let detected = await Task.detached {
+            ProfileDiscovery(fileSystem: fileSystem).provider(forDirectory: standard)
+        }.value
+        // Checked after the await so a folder added meanwhile is not added twice.
+        if let existing = profiles.first(where: { standardized($0.configDirectory) == standard }) {
+            return .alreadyAdded(existing)
+        }
+        guard let detected else {
+            return .unrecognized
+        }
+        addProfile(provider: detected, directory: directory)
+        candidates.removeAll { standardized($0.configDirectory) == standard }
+        return profiles.first { standardized($0.configDirectory) == standard }.map { .added($0) } ?? .unrecognized
+    }
+
+    private func standardized(_ path: String) -> String {
+        ConfigPath.standardized(path, home: dependencies.fileSystem.homeDirectory)
     }
 }
