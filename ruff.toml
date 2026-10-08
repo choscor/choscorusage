@@ -1,0 +1,7 @@
+target-version = "py312"
+extend-exclude = ["build", ".build"]
+
+[lint]
+# Keep the required gate high-signal. Additional rule families are enabled only
+# after their existing findings have been reviewed and repaired.
+select = ["E4", "E7", "E9", "F"]

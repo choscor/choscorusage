@@ -1,0 +1,35 @@
+# Build output and pinned tool cache (build/tools is restored by CI from tools.json)
+/build/
+DerivedData/
+.build/
+.swiftpm/
+*.xcresult
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# macOS
+.DS_Store
+
+# Local Python environments and caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local configuration, credentials, signing material and logs
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.log

@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /scripts/ci
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:10'
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    groups:
+      python-weekly:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:20'
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    groups:
+      actions-weekly:
+        patterns: ['*']

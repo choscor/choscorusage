@@ -1,0 +1,3 @@
+# Package sources state every access level explicitly (Q13 / explicit_acl).
+opt_in_rules:
+  - explicit_acl

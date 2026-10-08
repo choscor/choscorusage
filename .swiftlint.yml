@@ -1,0 +1,115 @@
+# SwiftLint owns lint, size limits, documentation and analysis; swift-format owns layout.
+# Run through `python scripts/ci/quality.py swiftlint` so the pinned binary is used.
+included:
+  - ChoscorUsage
+  - Packages/ChoscorUsageKit/Sources
+  - Packages/ChoscorUsageKit/Tests
+excluded:
+  - build
+  - Packages/ChoscorUsageKit/.build
+
+# Layout rules that conflict with swift-format output (Q12).
+disabled_rules:
+  - opening_brace
+  - trailing_comma
+  - vertical_parameter_alignment
+  - statement_position
+  - indentation_width
+  - closure_parameter_position
+  - multiline_arguments
+  - vertical_whitespace
+  # Replaced by the `todo_requires_issue` custom rule, which allows `TODO(#12)`.
+  - todo
+
+opt_in_rules:
+  - missing_docs
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - fatal_error_message
+  - discouraged_optional_boolean
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - sorted_first_last
+  - redundant_type_annotation
+  - unused_parameter
+  - yoda_condition
+  - prefer_self_in_static_references
+  - private_swiftui_state
+  - accessibility_label_for_image
+  - closure_body_length
+
+analyzer_rules:
+  - unused_declaration
+  - unused_import
+
+# Q10 limits. `--strict` promotes warnings, so warning and error thresholds match.
+file_length:
+  warning: 400
+  error: 400
+  ignore_comment_only_lines: false
+function_body_length:
+  warning: 40
+  error: 40
+type_body_length:
+  warning: 250
+  error: 250
+line_length:
+  warning: 120
+  error: 120
+  ignores_urls: true
+cyclomatic_complexity:
+  warning: 10
+  error: 10
+  ignores_case_statements: false
+nesting:
+  type_level:
+    warning: 2
+    error: 2
+  function_level:
+    warning: 2
+    error: 2
+function_parameter_count:
+  warning: 5
+  error: 5
+large_tuple:
+  warning: 3
+  error: 3
+closure_body_length:
+  warning: 30
+  error: 30
+missing_docs:
+  warning: [open, public]
+# ChoscorUsageKit re-exports ChoscorUsageCore (`@_exported import`), and the app may import only
+# Kit, so importing Kit for Core symbols is the intended use, not an unused import.
+unused_import:
+  allowed_transitive_imports:
+    - module: ChoscorUsageKit
+      allowed_transitive_imports: [ChoscorUsageCore]
+
+custom_rules:
+  no_print:
+    name: No print
+    regex: '\bprint\('
+    match_kinds: [identifier]
+    excluded: '.*Tests/.*'
+    message: Use os.Logger instead of print.
+    severity: error
+  no_commented_out_code:
+    name: No commented-out code
+    regex: '^\s*//\s*(let|var|func|if|guard|return|import|struct|class|enum|for|while|\})(\s|$)'
+    match_kinds: [comment]
+    message: Delete commented-out code; version control keeps history.
+    severity: error
+  todo_requires_issue:
+    name: TODO references an issue
+    regex: '\b(TODO|FIXME)\b(?!\(#\d+\))'
+    match_kinds: [comment]
+    message: 'Write `TODO(#<issue>): …` so every TODO is tracked.'
+    severity: error
+  no_catch_all_files:
+    name: No catch-all files
+    included: '.*/(Utils|Helpers|Misc)\.swift$'
+    regex: '\A'
+    message: Give shared code a named home instead of Utils, Helpers or Misc.
+    severity: error

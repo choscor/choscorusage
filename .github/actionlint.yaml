@@ -1,0 +1,5 @@
+# actionlint 1.7.7 predates GitHub's hosted `macos-26` image, so its label list
+# does not know it. Declare only that label; remove this once the pin knows it.
+self-hosted-runner:
+  labels:
+    - macos-26

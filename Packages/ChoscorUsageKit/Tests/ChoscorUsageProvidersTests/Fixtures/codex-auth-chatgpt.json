@@ -1,0 +1,1 @@
+{ "auth_mode": "chatgpt", "OPENAI_API_KEY": null, "tokens": { "id_token": "synthetic-id", "access_token": "synthetic-access", "refresh_token": "synthetic-refresh", "account_id": "acct-synthetic" }, "last_refresh": "2026-10-08T00:00:00Z" }
