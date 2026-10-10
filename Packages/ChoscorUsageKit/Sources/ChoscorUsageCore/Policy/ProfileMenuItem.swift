@@ -14,7 +14,8 @@ public struct ProfileMenuItem: Equatable, Sendable {
 
     /// The display name without the provider prefix the logo already shows.
     public let title: String
-    /// Every window as `5h 72% · 1h12m` (reset countdown last), joined by ` · `, led by a short problem.
+    /// Every window as `5h 72% (1h12m)` (reset countdown in parentheses), joined by ` • `, led by a
+    /// short problem when there is one.
     public let badge: String
     /// The row's full text, `<title> — <badge>`. Menu-item badges are drawn at a fixed small font,
     /// so the usage shares the title to render at the normal menu size.
@@ -44,14 +45,21 @@ public struct ProfileMenuItem: Equatable, Sendable {
         return "Updated \(CompactDuration.age(now.timeIntervalSince(newest)))"
     }
 
+    private static let separator = " • "
+
     /// A problem leads, but the last known windows stay beside it so a failed refresh does not
-    /// hide the numbers.
+    /// hide the numbers. A stale Claude token is routine (it renews whenever Claude Code runs),
+    /// so it gives way to the windows and keeps its advice in the tooltip.
     private static func badge(for usage: ProfileUsage, now: Date) -> String {
         let windows = usage.snapshot?.windows ?? []
         guard let problem = shortProblem(usage.state) else {
             return summary(windows, state: usage.state, now: now)
         }
-        return windows.isEmpty ? problem : "\(problem) · \(summary(windows, state: usage.state, now: now))"
+        if windows.isEmpty {
+            return problem
+        }
+        let summary = summary(windows, state: usage.state, now: now)
+        return usage.state == .stale(.claude) ? summary : "\(problem)\(separator)\(summary)"
     }
 
     /// Default names are `<Provider> · <suffix>` or just `<Provider>`; renamed profiles are kept.
@@ -101,8 +109,8 @@ public struct ProfileMenuItem: Equatable, Sendable {
             guard let resetsAt = window.resetsAt else {
                 return used
             }
-            return "\(used) · \(CompactDuration.format(resetsAt.timeIntervalSince(now)))"
+            return "\(used) (\(CompactDuration.format(resetsAt.timeIntervalSince(now))))"
         }
-        .joined(separator: " · ")
+        .joined(separator: separator)
     }
 }

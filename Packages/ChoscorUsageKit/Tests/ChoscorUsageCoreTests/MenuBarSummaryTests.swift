@@ -68,10 +68,26 @@ struct MenuBarSummaryTests {
         let summary = MenuBarSummary.make(
             from: [usage("Claude", order: 0, [("5h", 90, 18_000)]), chosen], chosenProfileID: chosen.id, now: now)
         #expect(summary.text == ProfileMenuItem.make(from: chosen, now: now).badge)
-        #expect(summary.text == "5h 12% · 7d 85%")
+        #expect(summary.text == "5h 12% • 7d 85%")
         #expect(summary.percent == 85)
         #expect(summary.tint == .warning)
-        #expect(summary.accessibilityLabel == "Codex: 5h 12% · 7d 85%")
+        #expect(summary.accessibilityLabel == "Codex: 5h 12% • 7d 85%")
+    }
+
+    @Test func aChosenStaleClaudeProfileShowsItsWindowsWithoutTheProblem() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let profile = Profile(provider: .claude, configDirectory: "/Users/x/.claude-04", displayName: "04", order: 0)
+        let windows = [
+            UsageWindow(id: "five_hour", label: "5h", usedPercent: 0, resetsAt: nil, windowLength: .seconds(18_000)),
+            UsageWindow(
+                id: "seven_day_fable", label: "7d Fable", usedPercent: 0, resetsAt: now.addingTimeInterval(396_000),
+                windowLength: .seconds(604_800)),
+        ]
+        let chosen = ProfileUsage(
+            profile: profile, state: .stale(.claude),
+            snapshot: UsageSnapshot(windows: windows, fetchedAt: now, source: .endpoint))
+        let summary = MenuBarSummary.make(from: [chosen], chosenProfileID: profile.id, now: now)
+        #expect(summary.text == "5h 0% • 7d Fable 0% (4d14h)")
     }
 
     @Test func aChosenProfileThatIsHiddenOrGoneFallsBackToTheWorstWindow() {
