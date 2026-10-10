@@ -7,7 +7,7 @@ public enum CompactDuration {
 
     /// Returns the two largest non-zero units (`3d4h`, `1h12m`, `5d`), or `<1m` under a minute.
     public static func format(_ seconds: TimeInterval) -> String {
-        var remaining = Int(seconds.rounded(.down))
+        var remaining = wholeSeconds(seconds)
         var parts: [String] = []
         for unit in units where parts.count < 2 {
             let value = remaining / unit.seconds
@@ -19,6 +19,15 @@ public enum CompactDuration {
             }
         }
         return parts.isEmpty ? "<1m" : parts.joined()
+    }
+
+    /// `Int(Double)` traps outside `Int`'s range, and countdowns come from server or persisted
+    /// dates, so out-of-range values clamp to the nearest bound and NaN counts as zero.
+    private static func wholeSeconds(_ seconds: TimeInterval) -> Int {
+        guard !seconds.isNaN else {
+            return 0
+        }
+        return Int(exactly: seconds.rounded(.down)) ?? (seconds > 0 ? .max : .min)
     }
 
     /// Returns `just now` under a minute, else `<duration> ago`.

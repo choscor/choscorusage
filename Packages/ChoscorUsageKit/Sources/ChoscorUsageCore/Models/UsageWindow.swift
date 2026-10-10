@@ -18,8 +18,28 @@ public struct UsageWindow: Codable, Equatable, Hashable, Sendable, Identifiable 
     public init(id: String, label: String, usedPercent: Double, resetsAt: Date?, windowLength: Duration?) {
         self.id = id
         self.label = label
-        self.usedPercent = usedPercent.isNaN ? 0 : min(max(usedPercent, 0), 100)
+        self.usedPercent = Self.clamped(usedPercent)
         self.resetsAt = resetsAt
         self.windowLength = windowLength
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, usedPercent, resetsAt, windowLength
+    }
+
+    /// Decodes a persisted window, clamping `usedPercent` as ``init(id:label:usedPercent:resetsAt:windowLength:)``
+    /// does, so an edited or older file cannot carry an out-of-range percentage into the UI.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(String.self, forKey: .id),
+            label: try container.decode(String.self, forKey: .label),
+            usedPercent: try container.decode(Double.self, forKey: .usedPercent),
+            resetsAt: try container.decodeIfPresent(Date.self, forKey: .resetsAt),
+            windowLength: try container.decodeIfPresent(Duration.self, forKey: .windowLength))
+    }
+
+    private static func clamped(_ percent: Double) -> Double {
+        percent.isNaN ? 0 : min(max(percent, 0), 100)
     }
 }

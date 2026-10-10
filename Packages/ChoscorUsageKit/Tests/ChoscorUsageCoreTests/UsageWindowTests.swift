@@ -33,4 +33,12 @@ struct UsageWindowTests {
         let data = try JSONEncoder().encode(window)
         #expect(try JSONDecoder().decode(UsageWindow.self, from: data) == window)
     }
+
+    @Test(arguments: [(140.0, 100.0), (-3, 0), (42.5, 42.5)])
+    func decodingAPersistedWindowClampsItsPercent(stored: Double, expected: Double) throws {
+        let json = #"{"id":"five_hour","label":"5h","usedPercent":\#(stored)}"#
+        let window = try JSONDecoder().decode(UsageWindow.self, from: Data(json.utf8))
+        #expect(window.usedPercent == expected)
+        #expect(window.resetsAt == nil && window.windowLength == nil)
+    }
 }

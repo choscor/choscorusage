@@ -22,7 +22,8 @@ public struct NotificationPolicy: Sendable {
     }
 
     /// Returns the alerts to deliver for `usages` and records them in `ledger`. Disabled kinds
-    /// are still recorded, so turning a toggle on later does not replay old crossings.
+    /// are still recorded, so turning a toggle on later does not replay old crossings. Keys for
+    /// windows a profile's fresh endpoint snapshot no longer reports are dropped.
     public func evaluate(_ usages: [ProfileUsage], ledger: inout NotificationLedger, now: Date) -> [UsageNotification] {
         var events: [UsageNotification] = []
         for usage in usages where Self.isEligible(usage, now: now) {
@@ -30,7 +31,15 @@ public struct NotificationPolicy: Sendable {
                 events += evaluate(window, of: usage.profile, ledger: &ledger)
             }
         }
-        ledger.prune(before: now)
+        // Only a fresh endpoint reading is complete: a Codex local log lacks additional limits,
+        // and last good data is stale, so neither may erase alert history.
+        var currentWindows: [UUID: Set<String>] = [:]
+        for usage in usages where usage.state == .fresh {
+            if let snapshot = usage.snapshot, snapshot.source == .endpoint {
+                currentWindows[usage.profile.id] = Set(snapshot.windows.map(\.id))
+            }
+        }
+        ledger.prune(before: now, currentWindows: currentWindows)
         return events
     }
 
@@ -127,7 +136,8 @@ public struct NotificationPolicy: Sendable {
     )
         -> UsageNotification
     {
-        let stamp = key.resetsAt.map { String(Int($0.timeIntervalSince1970)) } ?? "none"
+        // `Int(exactly:)` rather than `Int(_:)`, which traps on a reset time beyond `Int`'s range.
+        let stamp = key.resetsAt.flatMap { Int(exactly: $0.timeIntervalSince1970) }.map(String.init) ?? "none"
         let id = "\(key.profileID.uuidString)|\(key.windowID)|\(stamp)|\(key.kind.rawValue)"
         return UsageNotification(id: id, title: profile.displayName, body: body)
     }

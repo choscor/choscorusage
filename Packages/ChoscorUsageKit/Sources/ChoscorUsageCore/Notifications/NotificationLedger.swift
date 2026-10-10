@@ -67,9 +67,29 @@ public struct NotificationLedger: Codable, Equatable, Sendable {
         armed[windowKey] != nil || armedWithoutReset.contains(windowKey)
     }
 
-    /// Drops keys for windows that reset more than a day before `now`, bounding the file.
-    internal mutating func prune(before now: Date) {
+    /// Drops keys for windows that reset more than a day before `now`, and every key for a window
+    /// its profile's latest complete snapshot no longer reports, bounding the file.
+    /// `currentWindows` maps each such profile to its window IDs; other profiles keep their keys.
+    internal mutating func prune(before now: Date, currentWindows: [UUID: Set<String>]) {
         let cutoff = now.addingTimeInterval(-86_400)
-        delivered = delivered.filter { key in key.resetsAt.map { $0 >= cutoff } ?? true }
+        delivered = delivered.filter { key in
+            (key.resetsAt.map { $0 >= cutoff } ?? true)
+                && Self.isReported(key.windowID, of: key.profileID, in: currentWindows)
+        }
+        armed = armed.filter { Self.isReported(windowKey: $0.key, in: currentWindows) }
+        armedWithoutReset = armedWithoutReset.filter { Self.isReported(windowKey: $0, in: currentWindows) }
+    }
+
+    private static func isReported(_ windowID: String, of profileID: UUID, in current: [UUID: Set<String>]) -> Bool {
+        current[profileID].map { $0.contains(windowID) } ?? true
+    }
+
+    /// Window keys are `<profile UUID>|<window ID>`; a UUID never contains `|`.
+    private static func isReported(windowKey: String, in current: [UUID: Set<String>]) -> Bool {
+        guard let bar = windowKey.firstIndex(of: "|"), let profileID = UUID(uuidString: String(windowKey[..<bar]))
+        else {
+            return true
+        }
+        return isReported(String(windowKey[windowKey.index(after: bar)...]), of: profileID, in: current)
     }
 }

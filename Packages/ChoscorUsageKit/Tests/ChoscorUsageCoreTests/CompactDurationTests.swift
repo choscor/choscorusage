@@ -12,6 +12,13 @@ struct CompactDurationTests {
         #expect(CompactDuration.format(seconds) == text)
     }
 
+    @Test(arguments: [
+        (1e20, "106751991167300d15h"), (.infinity, "106751991167300d15h"), (-1e20, "<1m"), (.nan, "<1m"),
+    ])
+    func countdownClampsValuesBeyondTheIntegerRange(seconds: Double, text: String) {
+        #expect(CompactDuration.format(seconds) == text)
+    }
+
     @Test(arguments: [(20.0, "just now"), (60, "1m ago"), (3_700, "1h1m ago"), (90_000, "1d1h ago")])
     func ageReadsAsElapsedTime(seconds: Double, text: String) {
         #expect(CompactDuration.age(seconds) == text)
