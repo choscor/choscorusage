@@ -10,6 +10,7 @@ struct ClaudeCredentialReaderTests {
     private let home: TemporaryHome
     private let files: RecordingFileSystem
     private let keychain = FakeKeychain()
+    private let direct = FakeKeychain()
 
     init() throws {
         home = try TemporaryHome()
@@ -30,13 +31,15 @@ struct ClaudeCredentialReaderTests {
             keychainServiceOverride: override)
     }
 
-    private var reader: ClaudeCredentialReader { ClaudeCredentialReader(keychain: keychain, fileSystem: files) }
+    private var reader: ClaudeCredentialReader {
+        ClaudeCredentialReader(keychain: keychain, directKeychain: direct, fileSystem: files)
+    }
 
     @Test func keychainWinsOverTheCredentialsFile() throws {
         let work = profile(".claude-work")
         keychain.set(ClaudeKeychainService.name(forConfigDir: work.configDirectory), .success(payload("from-keychain")))
         try home.write(".claude-work/.credentials.json", json("from-file"))
-        let result = reader.read(for: work)
+        let result = reader.read(for: work, allowingDirectRead: false)
         #expect(
             result
                 == .found(
@@ -46,7 +49,7 @@ struct ClaudeCredentialReaderTests {
 
     @Test func fallsBackToTheCredentialsFileWhenNoKeychainItemExists() throws {
         try home.write(".claude-work/.credentials.json", json("from-file"))
-        #expect(reader.read(for: profile(".claude-work")).accessToken == "from-file")
+        #expect(reader.read(for: profile(".claude-work"), allowingDirectRead: false).accessToken == "from-file")
     }
 
     @Test func aLockedKeychainIsReportedUnlessTheCredentialsFileHasAToken() throws {
@@ -54,23 +57,22 @@ struct ClaudeCredentialReaderTests {
         keychain.set(
             ClaudeKeychainService.name(forConfigDir: work.configDirectory),
             .failure(.unavailable(status: -25_308)))
-        #expect(reader.read(for: work) == .keychainUnavailable)
+        #expect(reader.read(for: work, allowingDirectRead: false) == .keychainUnavailable)
         try home.write(".claude-work/.credentials.json", json("from-file"))
-        #expect(reader.read(for: work).accessToken == "from-file")
+        #expect(reader.read(for: work, allowingDirectRead: false).accessToken == "from-file")
     }
 
     @Test func defaultProfileReadsTheUnsuffixedService() {
         keychain.set("Claude Code-credentials", .success(payload("default")))
-        let reader = ClaudeCredentialReader(
-            keychain: keychain, fileSystem: files)
-        let result = reader.read(for: profile(".claude"))
+        let result = reader.read(for: profile(".claude"), allowingDirectRead: false)
         #expect(result.accessToken == "default")
         #expect(keychain.reads == ["Claude Code-credentials"])
     }
 
     @Test func userPickedOverrideIsTheOnlyServiceRead() {
         keychain.set("Claude Code-credentials-picked", .success(payload("picked")))
-        let result = reader.read(for: profile(".claude-personal", override: "Claude Code-credentials-picked"))
+        let picked = profile(".claude-personal", override: "Claude Code-credentials-picked")
+        let result = reader.read(for: picked, allowingDirectRead: false)
         #expect(result.accessToken == "picked")
         #expect(keychain.reads == ["Claude Code-credentials-picked"])
     }
@@ -79,17 +81,56 @@ struct ClaudeCredentialReaderTests {
         let work = profile(".claude-work")
         keychain.set(ClaudeKeychainService.name(forConfigDir: work.configDirectory), .failure(.denied))
         try home.write(".claude-work/.credentials.json", json("file"))
-        #expect(reader.read(for: work) == .keychainDenied)
+        #expect(reader.read(for: work, allowingDirectRead: false) == .keychainDenied)
         #expect(keychain.reads.count == 1)
     }
 
+    @Test func aFailedFirstReadFallsBackToTheDirectReadOnlyWhenAllowed() {
+        let work = profile(".claude-work")
+        let service = ClaudeKeychainService.name(forConfigDir: work.configDirectory)
+        keychain.set(service, .failure(.unavailable(status: 36)))
+        direct.set(service, .success(payload("direct")))
+        #expect(reader.read(for: work, allowingDirectRead: false) == .keychainUnavailable)
+        #expect(direct.reads.isEmpty)
+        #expect(reader.read(for: work, allowingDirectRead: true).accessToken == "direct")
+        #expect(direct.reads == [service])
+    }
+
+    @Test func undecodableFirstReadOutputCountsAsAFailedRead() {
+        let work = profile(".claude-work")
+        let service = ClaudeKeychainService.name(forConfigDir: work.configDirectory)
+        keychain.set(service, .success(Data("7b2263".utf8)))
+        direct.set(service, .success(payload("direct")))
+        #expect(reader.read(for: work, allowingDirectRead: false) == .keychainUnavailable)
+        #expect(reader.read(for: work, allowingDirectRead: true).accessToken == "direct")
+    }
+
+    @Test func aSuccessfulOrMissingFirstReadNeverTouchesTheDirectReader() {
+        let work = profile(".claude-work")
+        let service = ClaudeKeychainService.name(forConfigDir: work.configDirectory)
+        direct.set(service, .success(payload("direct")))
+        #expect(reader.read(for: work, allowingDirectRead: true) == .notFound)
+        keychain.set(service, .success(payload("cli")))
+        #expect(reader.read(for: work, allowingDirectRead: true).accessToken == "cli")
+        #expect(direct.reads.isEmpty)
+    }
+
+    @Test func aDirectReadDenialIsADenial() throws {
+        let work = profile(".claude-work")
+        let service = ClaudeKeychainService.name(forConfigDir: work.configDirectory)
+        keychain.set(service, .failure(.unavailable(status: 1)))
+        direct.set(service, .failure(.denied))
+        try home.write(".claude-work/.credentials.json", json("file"))
+        #expect(reader.read(for: work, allowingDirectRead: true) == .keychainDenied)
+    }
+
     @Test func missingEverywhereIsReportedAsNotFound() {
-        #expect(reader.read(for: profile(".claude-empty")) == .notFound)
+        #expect(reader.read(for: profile(".claude-empty"), allowingDirectRead: false) == .notFound)
     }
 
     @Test func readingNeverWritesFilesAndTheCodeHasNoRefreshEndpoint() throws {
         try home.write(".claude-work/.credentials.json", json("file"))
-        _ = reader.read(for: profile(".claude-work"))
+        _ = reader.read(for: profile(".claude-work"), allowingDirectRead: false)
         #expect(files.writtenPaths.isEmpty)
         let sources = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../Sources")
         let enumerator = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)

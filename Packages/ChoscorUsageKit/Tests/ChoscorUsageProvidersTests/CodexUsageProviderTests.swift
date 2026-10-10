@@ -45,7 +45,7 @@ struct CodexUsageProviderTests {
     @Test func sendsBearerTokenAccountHeaderAndUserAgentToTheDefaultEndpoint() async throws {
         try signIn()
         transport.reply(.response(200, try FixtureLoader.data("codex-usage-5h-7d.json")), forHost: "chatgpt.com")
-        let outcome = await provider.fetch(profile)
+        let outcome = await provider.fetch(profile, allowingPrompt: false)
         let request = try #require(transport.requests.first)
         #expect(request.url.absoluteString == "https://chatgpt.com/backend-api/wham/usage")
         #expect(request.headers["Authorization"] == "Bearer synthetic-access")
@@ -64,18 +64,18 @@ struct CodexUsageProviderTests {
             ".codex/config.toml",
             "# chatgpt_base_url = \"https://ignored.example\"\nmodel = \"x\"\nchatgpt_base_url = \"https://proxy.example/backend-api/\" # team\n"
         )
-        _ = await provider.fetch(profile)
+        _ = await provider.fetch(profile, allowingPrompt: false)
         #expect(transport.requests.first?.url.absoluteString == "https://proxy.example/backend-api/wham/usage")
     }
 
     @Test func apiKeyModeIsReportedWithoutARequest() async throws {
         try signIn("codex-auth-apikey.json")
-        #expect(await provider.fetch(profile) == .apiKeyMode)
+        #expect(await provider.fetch(profile, allowingPrompt: false) == .apiKeyMode)
         #expect(transport.requests.isEmpty)
     }
 
     @Test func missingAuthFileIsCredentialsNotFound() async {
-        #expect(await provider.fetch(profile) == .credentialsNotFound)
+        #expect(await provider.fetch(profile, allowingPrompt: false) == .credentialsNotFound)
     }
 
     private var keyringItem: CodexKeychainItem {
@@ -87,7 +87,7 @@ struct CodexUsageProviderTests {
             keyringItem.service, account: keyringItem.account,
             .success(try FixtureLoader.data("codex-auth-chatgpt.json")))
         transport.reply(.response(200, try FixtureLoader.data("codex-usage-5h-7d.json")), forHost: "chatgpt.com")
-        guard case .success = await provider.fetch(profile) else {
+        guard case .success = await provider.fetch(profile, allowingPrompt: false) else {
             Issue.record("expected success from keyring credentials")
             return
         }
@@ -98,13 +98,13 @@ struct CodexUsageProviderTests {
     @Test func anAuthFileMeansTheKeychainIsNeverRead() async throws {
         try signIn()
         transport.reply(.response(200, try FixtureLoader.data("codex-usage-5h-7d.json")), forHost: "chatgpt.com")
-        _ = await provider.fetch(profile)
+        _ = await provider.fetch(profile, allowingPrompt: false)
         #expect(keychain.reads.isEmpty)
     }
 
     @Test func aDeniedKeyringReadIsKeychainDeniedWithoutARequest() async {
         keychain.set(keyringItem.service, account: keyringItem.account, .failure(.denied))
-        #expect(await provider.fetch(profile) == .keychainDenied)
+        #expect(await provider.fetch(profile, allowingPrompt: false) == .keychainDenied)
         #expect(transport.requests.isEmpty)
     }
 
@@ -112,7 +112,7 @@ struct CodexUsageProviderTests {
         try signIn()
         try installSessionLogs()
         transport.reply(.offline, forHost: "chatgpt.com")
-        guard case .failed(_, let fallback?) = await provider.fetch(profile) else {
+        guard case .failed(_, let fallback?) = await provider.fetch(profile, allowingPrompt: false) else {
             Issue.record("expected a failure with fallback data")
             return
         }
@@ -127,13 +127,13 @@ struct CodexUsageProviderTests {
         try signIn()
         try installSessionLogs()
         transport.reply(.response(502, Data()), forHost: "chatgpt.com")
-        guard case .failed(let detail, .some) = await provider.fetch(profile) else {
+        guard case .failed(let detail, .some) = await provider.fetch(profile, allowingPrompt: false) else {
             Issue.record("expected 5xx fallback")
             return
         }
         #expect(detail == "Codex returned HTTP 502")
         transport.reply(.response(200, try FixtureLoader.data("codex-usage-changed.json")), forHost: "chatgpt.com")
-        guard case .unsupportedResponse(.some) = await provider.fetch(profile) else {
+        guard case .unsupportedResponse(.some) = await provider.fetch(profile, allowingPrompt: false) else {
             Issue.record("expected decode-failure fallback")
             return
         }
@@ -143,9 +143,9 @@ struct CodexUsageProviderTests {
         try signIn()
         try installSessionLogs()
         transport.reply(.response(401, Data()), forHost: "chatgpt.com")
-        #expect(await provider.fetch(profile) == .stale)
+        #expect(await provider.fetch(profile, allowingPrompt: false) == .stale)
         transport.reply(.response(429, Data()), forHost: "chatgpt.com")
-        #expect(await provider.fetch(profile) == .rateLimited)
+        #expect(await provider.fetch(profile, allowingPrompt: false) == .rateLimited)
     }
 
     @Test func aLongRunningOlderSessionWithTheNewestWriteWins() throws {
@@ -188,6 +188,8 @@ struct CodexUsageProviderTests {
     @Test func noSessionLogsMeansNoFallback() async throws {
         try signIn()
         transport.reply(.offline, forHost: "chatgpt.com")
-        #expect(await provider.fetch(profile) == .failed(detail: "Couldn't reach Codex", fallback: nil))
+        #expect(
+            await provider.fetch(profile, allowingPrompt: false)
+                == .failed(detail: "Couldn't reach Codex", fallback: nil))
     }
 }

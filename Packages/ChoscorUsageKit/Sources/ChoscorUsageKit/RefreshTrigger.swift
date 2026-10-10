@@ -14,4 +14,13 @@ public enum RefreshTrigger: Sendable {
     case wake
     /// The user pressed Retry on a profile that needs Keychain access.
     case retry
+
+    /// Whether the user asked for this refresh, which lets a Claude credential read fall back
+    /// to a direct Keychain read that may prompt. Automatic triggers never prompt.
+    public var isUserAction: Bool {
+        switch self {
+        case .manual, .retry: true
+        case .launch, .timer, .menuOpened, .wake: false
+        }
+    }
 }

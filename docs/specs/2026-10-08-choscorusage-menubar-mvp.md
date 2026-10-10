@@ -133,6 +133,7 @@ Discovery never adds a directory twice. Paths are compared after standardization
 - The app reads each Claude keychain item **at most once per refresh cycle**.
 - If the user denies access (or presses Cancel), the profile goes into a `keychainDenied` state and **automatic refreshes stop prompting for it**. The popover row shows "Keychain access needed – Retry", and pressing Retry is the only thing that prompts again.
 - This avoids a storm of prompts across N profiles.
+- Superseded in part by [2026-10-10-keychain-row-format-hardening](2026-10-10-keychain-row-format-hardening.md): items are now read through `/usr/bin/security`, which the items already trust, the token is cached in memory until it expires or is rejected, and the prompting in-process read is only a fallback for Refresh Now and Retry.
 
 ### Endpoints (undocumented and private; isolate behind one decoder per provider)
 
@@ -368,7 +369,7 @@ README.md CONTRIBUTING.md CHANGELOG.md LICENSE CLAUDE.md .gitignore .gitattribut
 ## Constraints and risks
 
 - **Undocumented endpoints.** Both usage endpoints are unofficial, and their shapes may change without notice. Keep each provider's decoder isolated and tolerant, and present an `unsupportedResponse` state rather than crashing. The README must say that the app uses undocumented endpoints and is not affiliated with Anthropic or OpenAI.
-- **Keychain friction.** Claude Code's token refresh (about every 8 hours) resets "Always Allow". Users with N profiles may see repeated prompts, which the read-once-per-cycle and stop-after-denial rules limit. A future Developer ID–signed build will have a stable code identity, but the CLI recreating the item still resets the ACL. A Claude statusline cache source was considered and rejected for the MVP. It may come back later if the prompts prove too costly.
+- **Keychain friction.** Claude Code's token refresh (about every 8 hours) resets "Always Allow". Users with N profiles may see repeated prompts, which the read-once-per-cycle and stop-after-denial rules limit. A future Developer ID–signed build will have a stable code identity, but the CLI recreating the item still resets the ACL. A Claude statusline cache source was considered and rejected for the MVP. It may come back later if the prompts prove too costly. Since 2026-10-10 the CLI read and in-memory token cache remove the prompt in normal use (see the superseding spec above).
 - **Token rotation.** Refreshing tokens from the app could log the CLI out. That is why the app never refreshes. The accepted consequence is that idle profiles go stale until the user runs the CLI.
 - **Hash rule uncertainty.** The SHA-256 prefix rule was verified for 5 of 6 local profiles. The keychain-item picker handles the remaining cases. Do not try to guess alternative spellings automatically, beyond also trying the absolute path with and without a trailing slash.
 - **SwiftLint rule availability.** Rule names and options (for example `closure_body_length`'s options, `private_swiftui_state` and `accessibility_label_for_image`) must exist in the pinned version. If one doesn't, drop it, record that in `docs/CI.md`, and don't substitute a looser limit. The Q10 numbers are fixed: if code doesn't fit, split it rather than raising a limit or suppressing the rule.

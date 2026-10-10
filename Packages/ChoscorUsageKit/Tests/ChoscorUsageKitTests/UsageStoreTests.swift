@@ -214,7 +214,7 @@ private final class ScriptedProvider: UsageProviding {
 
     var fetchCount: Int { state.withLock { $0.count } }
 
-    func fetch(_: Profile) async -> UsageFetchOutcome {
+    func fetch(_: Profile, allowingPrompt _: Bool) async -> UsageFetchOutcome {
         state.withLock { state in
             state.count += 1
             return state.outcome

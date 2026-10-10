@@ -52,7 +52,7 @@ final class GatedProvider: UsageProviding {
         }
     }
 
-    func fetch(_: Profile) async -> UsageFetchOutcome {
+    func fetch(_: Profile, allowingPrompt _: Bool) async -> UsageFetchOutcome {
         let due = state.withLock { state in
             state.started += 1
             state.running += 1

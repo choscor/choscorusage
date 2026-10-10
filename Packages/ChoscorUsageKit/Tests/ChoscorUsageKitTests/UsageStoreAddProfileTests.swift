@@ -118,7 +118,7 @@ struct UsageStoreAddProfileTests {
 
 /// Every fetch reports API-key mode, so nothing touches the network.
 private struct APIKeyProvider: UsageProviding {
-    func fetch(_: Profile) async -> UsageFetchOutcome { .apiKeyMode }
+    func fetch(_: Profile, allowingPrompt _: Bool) async -> UsageFetchOutcome { .apiKeyMode }
 }
 
 /// Drops notifications.

@@ -23,8 +23,10 @@ ChoscorUsage reuses each CLI's existing sign-in **read-only**. It never refreshe
 and never writes to the Keychain or to any file in a CLI config directory, so it cannot
 sign you out of a CLI. When a token expires, the profile shows as stale until you run
 `claude` or `codex login` in that profile. Tokens, account IDs and response bodies are
-never logged or stored. macOS may ask once per Claude profile for Keychain access; if you
-deny it, the app stops asking until you press **Retry**.
+never logged or stored. Claude tokens are read with macOS's own `security` tool, which
+Claude Code's Keychain items already trust, and kept in memory until they expire, so
+normally macOS does not ask for Keychain access. Only **Refresh Now** and **Retry** fall
+back to a read that may ask; if you deny it, the app stops asking until you press **Retry**.
 
 ## Downloads
 

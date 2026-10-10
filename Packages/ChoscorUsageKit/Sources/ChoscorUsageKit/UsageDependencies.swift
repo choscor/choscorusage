@@ -38,14 +38,18 @@ public struct UsageDependencies: Sendable {
     }
 
     /// The real system: URLSession, the Security Keychain, the user's home and `UserDefaults.standard`.
+    /// Claude tokens are read through `/usr/bin/security`; the in-process Keychain read is only
+    /// its fallback on a user action, plus attribute-only listing and Codex's keyring item.
     public static func live(appVersion: String, notifier: any UsageNotifying) -> Self {
         let fileSystem = LocalFileSystem()
         let keychain = SecurityKeychainReader()
+        let cliKeychain = SecurityCLIKeychainReader(runner: ProcessCommandRunner(), attributes: keychain)
         let transport = URLSessionTransport()
         let clock = SystemClock()
         let userAgent = "ChoscorUsage/\(appVersion)"
         let claude = ClaudeUsageProvider(
-            credentials: ClaudeCredentialReader(keychain: keychain, fileSystem: fileSystem),
+            credentials: ClaudeCredentialReader(
+                keychain: cliKeychain, directKeychain: keychain, fileSystem: fileSystem),
             transport: transport, clock: clock, userAgent: userAgent)
         let codex = CodexUsageProvider(
             fileSystem: fileSystem, keychain: keychain, transport: transport, clock: clock, userAgent: userAgent)

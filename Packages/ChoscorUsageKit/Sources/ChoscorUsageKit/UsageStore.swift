@@ -115,19 +115,20 @@ public final class UsageStore {
     }
 
     /// Refreshes if the scheduler allows `trigger` (manual is debounced to 10 s; menu opens
-    /// refresh only data older than 60 s), then delivers notifications and saves results.
+    /// refresh only data older than 60 s), then delivers notifications and saves results. Only
+    /// a user action (``RefreshTrigger/isUserAction``) may fall back to a prompting Keychain read.
     public func refresh(_ trigger: RefreshTrigger) async {
         guard !isRefreshing, scheduler.begin(trigger, now: dependencies.clock.now) else {
             return
         }
         isRefreshing = true
         defer { isRefreshing = false }
-        record(await refresher.refresh(profiles))
+        record(await refresher.refresh(profiles, allowingPrompt: trigger.isUserAction))
         await finishRefresh()
     }
 
-    /// Clears a Keychain denial for `id` and fetches it now; this is the only path that prompts
-    /// again after a denial.
+    /// Clears a Keychain denial and the cached token for `id` and fetches it now, allowing a
+    /// direct Keychain read; this is the only path that prompts again after a denial.
     public func retry(_ id: UUID) async {
         guard let profile = profiles.first(where: { $0.id == id }) else {
             return

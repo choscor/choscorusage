@@ -23,7 +23,8 @@ public struct CodexUsageProvider: UsageProviding {
     }
 
     /// Reads `auth.json` (or the keyring item), requests usage once, and maps the result.
-    public func fetch(_ profile: Profile) async -> UsageFetchOutcome {
+    /// `allowingPrompt` changes nothing: Codex has one credential read path.
+    public func fetch(_ profile: Profile, allowingPrompt _: Bool) async -> UsageFetchOutcome {
         let token: String
         let accountID: String?
         let credentials = CodexCredentials.read(

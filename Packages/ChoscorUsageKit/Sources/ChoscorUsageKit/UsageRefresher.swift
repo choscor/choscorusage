@@ -54,15 +54,16 @@ public actor UsageRefresher {
     /// Refreshes visible profiles, at most four at once. Skips profiles waiting out a 429
     /// backoff, profiles fetched within their provider's minimum spacing, and profiles whose
     /// Keychain access was denied (only ``retry(_:)`` prompts again, and it ignores spacing).
-    /// Returns the usage of every given profile in input order.
-    public func refresh(_ profiles: [Profile]) async -> [ProfileUsage] {
+    /// `allowingPrompt` is true only for a user action (Refresh Now) and lets providers fall back
+    /// to a credential read that may prompt. Returns the usage of every given profile in input order.
+    public func refresh(_ profiles: [Profile], allowingPrompt: Bool = false) async -> [ProfileUsage] {
         let now = clock.now
         let due = profiles.filter { profile in
             let record = records[profile.id] ?? Record()
             return !profile.isHidden && record.state != .keychainDenied && (record.retryAt.map { now >= $0 } ?? true)
                 && isSpacedOut(record, provider: profile.provider, now: now)
         }
-        await fetch(due)
+        await fetch(due, allowingPrompt: allowingPrompt)
         return profiles.map(usage(for:))
     }
 
@@ -73,7 +74,8 @@ public actor UsageRefresher {
         return now.timeIntervalSince(last) >= TimeInterval(spacing.components.seconds)
     }
 
-    /// Clears a Keychain denial and fetches `profile` immediately, which may prompt again. While
+    /// Clears a Keychain denial and any cached credentials and fetches `profile` immediately,
+    /// allowing a prompt. While
     /// a fetch for `profile` is running, the retry is queued to run (with this `profile` value,
     /// e.g. a newly picked Keychain item) as soon as that fetch ends, and the current usage is
     /// returned; the running fetch's caller receives the retried result.
@@ -82,41 +84,48 @@ public actor UsageRefresher {
             queuedRetries[profile.id] = profile
             return usage(for: profile)
         }
-        clearBackoffAndDenial(profile.id)
-        await fetch([profile])
+        prepareRetry(profile)
+        await fetch([profile], allowingPrompt: true)
         return usage(for: profile)
     }
 
-    /// Drops bookkeeping for profiles that no longer exist; results of fetches still running
-    /// for them are discarded.
+    /// Drops bookkeeping and cached credentials for profiles that no longer exist; results of
+    /// fetches still running for them are discarded.
     public func forget(except ids: Set<UUID>) {
+        Set(records.keys).union(inFlight).subtracting(ids).forEach(discardCachedCredentials(for:))
         records = records.filter { ids.contains($0.key) }
         queuedRetries = queuedRetries.filter { ids.contains($0.key) }
         forgotten = inFlight.subtracting(ids)
     }
 
-    private func clearBackoffAndDenial(_ id: UUID) {
-        records[id, default: Record()].state = .notLoaded
-        records[id]?.retryAt = nil
+    /// Retry is the user's way to make the app read credentials again, so the cache goes too.
+    private func prepareRetry(_ profile: Profile) {
+        records[profile.id, default: Record()].state = .notLoaded
+        records[profile.id]?.retryAt = nil
+        providers[profile.provider]?.discardCachedCredentials(for: profile.id)
+    }
+
+    private func discardCachedCredentials(for id: UUID) {
+        providers.values.forEach { $0.discardCachedCredentials(for: id) }
     }
 
     /// Fetches `profiles`, skipping any already in flight so a profile is never fetched twice
     /// at once (which could also stack Keychain prompts), then runs retries queued meanwhile.
-    private func fetch(_ requested: [Profile]) async {
+    private func fetch(_ requested: [Profile], allowingPrompt: Bool) async {
         let profiles = requested.filter { !inFlight.contains($0.id) }
         inFlight.formUnion(profiles.map(\.id))
-        await fetchConcurrently(profiles)
+        await fetchConcurrently(profiles, allowingPrompt: allowingPrompt)
         inFlight.subtract(profiles.map(\.id))
         forgotten.subtract(profiles.map(\.id))
         let retries = profiles.compactMap { queuedRetries.removeValue(forKey: $0.id) }
         guard !retries.isEmpty else {
             return
         }
-        retries.forEach { clearBackoffAndDenial($0.id) }
-        await fetch(retries)
+        retries.forEach(prepareRetry)
+        await fetch(retries, allowingPrompt: true)
     }
 
-    private func fetchConcurrently(_ profiles: [Profile]) async {
+    private func fetchConcurrently(_ profiles: [Profile], allowingPrompt: Bool) async {
         let providers = providers
         await withTaskGroup(of: (UUID, UsageFetchOutcome).self) { group in
             var pending = profiles[...]
@@ -128,7 +137,7 @@ public actor UsageRefresher {
                             to: profile)
                         continue
                     }
-                    group.addTask { (profile.id, await provider.fetch(profile)) }
+                    group.addTask { (profile.id, await provider.fetch(profile, allowingPrompt: allowingPrompt)) }
                     return
                 }
             }
@@ -146,6 +155,8 @@ public actor UsageRefresher {
 
     private func apply(_ outcome: UsageFetchOutcome, to profile: Profile) {
         guard !forgotten.contains(profile.id) else {
+            // The fetch may have cached a token after the profile was removed.
+            discardCachedCredentials(for: profile.id)
             return
         }
         var record = records[profile.id] ?? Record()

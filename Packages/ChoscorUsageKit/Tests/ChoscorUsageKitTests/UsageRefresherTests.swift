@@ -27,7 +27,8 @@ struct UsageRefresherTests {
     private func makeRefresher(minimumSpacing: [Provider: Duration] = [:]) -> UsageRefresher {
         let claude = ClaudeUsageProvider(
             credentials: ClaudeCredentialReader(
-                keychain: keychain, fileSystem: LocalFileSystem(homeDirectory: home.path)),
+                keychain: keychain, directKeychain: FakeKeychain(),
+                fileSystem: LocalFileSystem(homeDirectory: home.path)),
             transport: transport, clock: clock, userAgent: "ChoscorUsage/test")
         return UsageRefresher(providers: [.claude: claude], clock: clock, minimumSpacing: minimumSpacing)
     }
@@ -88,13 +89,15 @@ struct UsageRefresherTests {
         #expect(await refreshOnce(refresher)?.state == .fresh)
     }
 
-    @Test func eachCycleReadsTheKeychainItemOnce() async {
+    @Test func anUnexpiredTokenIsReadFromTheKeychainOnceAcrossCycles() async {
         let refresher = makeRefresher()
         transport.reply(.response(200, usageBody(1)), forHost: host)
         for _ in 0..<3 {
             _ = await refreshOnce(refresher)
+            clock.advance(by: .seconds(300))
         }
-        #expect(keychain.reads.count == 3)
+        #expect(keychain.reads.count == 1)
+        #expect(transport.requests.count == 3)
     }
 
     @Test func keychainDenialStopsAutomaticPromptsUntilRetry() async {
@@ -168,7 +171,7 @@ private final class ConcurrencyGauge: UsageProviding {
     var peak: Int { state.withLock { $0.peak } }
     var total: Int { state.withLock { $0.total } }
 
-    func fetch(_: Profile) async -> UsageFetchOutcome {
+    func fetch(_: Profile, allowingPrompt _: Bool) async -> UsageFetchOutcome {
         state.withLock { state in
             state.current += 1
             state.total += 1
