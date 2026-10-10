@@ -18,6 +18,30 @@ public struct LocalFileSystem: FileSystem {
         FileManager.default.contents(atPath: path)
     }
 
+    /// Returns up to `length` bytes from `offset`, or `nil` when missing, unreadable or the range
+    /// is negative.
+    public func contents(atPath path: String, offset: Int, length: Int) -> Data? {
+        guard offset >= 0, length >= 0, let handle = FileHandle(forReadingAtPath: path) else {
+            return nil
+        }
+        defer { try? handle.close() }
+        do {
+            try handle.seek(toOffset: UInt64(offset))
+            return try handle.read(upToCount: length) ?? Data()
+        } catch {
+            return nil
+        }
+    }
+
+    /// Returns the file's size in bytes, following symlinks as the ranged read does.
+    public func fileSize(atPath path: String) -> Int? {
+        guard let handle = FileHandle(forReadingAtPath: path) else {
+            return nil
+        }
+        defer { try? handle.close() }
+        return (try? handle.seekToEnd()).flatMap { Int(exactly: $0) }
+    }
+
     /// Returns entry names in a directory, or an empty array.
     public func directoryEntries(atPath path: String) -> [String] {
         (try? FileManager.default.contentsOfDirectory(atPath: path)) ?? []

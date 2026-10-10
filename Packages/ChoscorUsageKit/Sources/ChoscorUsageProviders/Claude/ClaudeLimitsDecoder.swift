@@ -16,9 +16,9 @@ internal enum ClaudeLimitsDecoder {
 
     /// Windows from `limits[]` in array order. Known kinds reuse the flat keys' IDs (`five_hour`,
     /// `seven_day`, `seven_day_<model>`) so they replace those windows and keep alert history.
-    internal static func limitWindows(in root: [String: Any]) -> [UsageWindow] {
+    internal static func limitWindows(in root: [String: Any], now: Date) -> [UsageWindow] {
         let entries = root["limits"] as? [Any] ?? []
-        return entries.compactMap { ($0 as? [String: Any]).flatMap(window(for:)) }
+        return entries.compactMap { ($0 as? [String: Any]).flatMap { window(for: $0, now: now) } }
     }
 
     /// The `Extra` window when extra usage is enabled and reports a utilization.
@@ -32,7 +32,7 @@ internal enum ClaudeLimitsDecoder {
             id: "extra_usage", label: "Extra", usedPercent: utilization.doubleValue, resetsAt: nil, windowLength: nil)
     }
 
-    private static func window(for entry: [String: Any]) -> UsageWindow? {
+    private static func window(for entry: [String: Any], now: Date) -> UsageWindow? {
         guard let kind = entry["kind"] as? String,
             let percent = (entry["percent"] ?? entry["utilization"]) as? NSNumber
         else {
@@ -55,7 +55,7 @@ internal enum ClaudeLimitsDecoder {
         }
         return UsageWindow(
             id: identity.id, label: identity.label, usedPercent: percent.doubleValue,
-            resetsAt: resetDate(entry["resets_at"]), windowLength: identity.length)
+            resetsAt: resetDate(entry["resets_at"], now: now), windowLength: identity.length)
     }
 
     private static func modelName(in entry: [String: Any]) -> String? {
@@ -64,11 +64,12 @@ internal enum ClaudeLimitsDecoder {
         return model?["display_name"] as? String
     }
 
-    /// Accepts ISO 8601 text or epoch seconds, since entries may differ from the flat keys.
-    private static func resetDate(_ value: Any?) -> Date? {
+    /// Accepts ISO 8601 text or epoch seconds, since entries may differ from the flat keys, and
+    /// drops either outside ``ResetDateRange``.
+    private static func resetDate(_ value: Any?, now: Date) -> Date? {
         switch value {
-        case let text as String: ISO8601Timestamp.parse(text)
-        case let seconds as NSNumber: Date(timeIntervalSince1970: seconds.doubleValue)
+        case let text as String: ResetDateRange.accepted(ISO8601Timestamp.parse(text), now: now)
+        case let seconds as NSNumber: ResetDateRange.date(epochSeconds: seconds.doubleValue, now: now)
         default: nil
         }
     }

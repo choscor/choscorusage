@@ -28,15 +28,19 @@ public enum CodexUsageDecoder {
         let secondaryWindow: Window?
     }
 
+    /// Numbers are decoded as `Double` so an out-of-range value drops its field instead of
+    /// failing the whole response, as `Int` decoding would.
     private struct Window: Decodable {
         let usedPercent: Double
-        let limitWindowSeconds: Int?
-        let resetAfterSeconds: Int?
-        let resetAt: Int?
+        let limitWindowSeconds: Double?
+        let resetAfterSeconds: Double?
+        let resetAt: Double?
     }
 
     /// Returns primary and secondary windows, then each additional limit's windows labelled
-    /// with its name. `now` resolves `reset_after_seconds` when `reset_at` is absent.
+    /// with its name. `now` resolves `reset_after_seconds` when `reset_at` is absent; reset times
+    /// outside ``ResetDateRange`` of `now` and window lengths that are not positive whole
+    /// seconds are dropped.
     public static func decode(_ data: Data, now: Date) throws(DecodingFailure) -> [UsageWindow] {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -57,11 +61,11 @@ public enum CodexUsageDecoder {
             guard let window else {
                 return nil
             }
-            let length = window.limitWindowSeconds
+            let length = window.limitWindowSeconds.flatMap { Int(exactly: $0) }.flatMap { $0 > 0 ? $0 : nil }
             let label = length.map { WindowLabel.short(forSeconds: $0) } ?? id
             let resetsAt =
-                window.resetAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
-                ?? window.resetAfterSeconds.map { now.addingTimeInterval(TimeInterval($0)) }
+                window.resetAt.flatMap { ResetDateRange.date(epochSeconds: $0, now: now) }
+                ?? window.resetAfterSeconds.flatMap { ResetDateRange.accepted(now.addingTimeInterval($0), now: now) }
             return UsageWindow(
                 id: prefix.map { "\($0).\(id)" } ?? id,
                 label: prefix.map { "\($0) \(label)" } ?? label,

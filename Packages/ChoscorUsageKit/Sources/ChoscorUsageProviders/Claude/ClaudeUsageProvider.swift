@@ -54,7 +54,7 @@ public struct ClaudeUsageProvider: UsageProviding {
         guard (200..<300).contains(response.statusCode) else {
             return HTTPStatusOutcome.outcome(forStatus: response.statusCode, providerName: "Claude")
         }
-        guard let windows = try? ClaudeUsageDecoder.decode(response.body) else {
+        guard let windows = try? ClaudeUsageDecoder.decode(response.body, now: clock.now) else {
             return .unsupportedResponse(fallback: nil)
         }
         return .success(UsageSnapshot(windows: windows, fetchedAt: clock.now, source: .endpoint))

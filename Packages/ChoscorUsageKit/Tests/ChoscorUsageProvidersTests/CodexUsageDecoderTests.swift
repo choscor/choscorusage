@@ -37,4 +37,17 @@ struct CodexUsageDecoderTests {
             try CodexUsageDecoder.decode(FixtureLoader.data("codex-usage-changed.json"), now: now)
         }
     }
+
+    @Test func outOfRangeNumbersDropTheirFieldInsteadOfTheResponse() throws {
+        let body = #"""
+            {"rate_limit":{
+              "primary_window":{"used_percent":4,"limit_window_seconds":1e20,"reset_at":1e20},
+              "secondary_window":{"used_percent":9,"limit_window_seconds":604800,"reset_at":-1e20,
+                                  "reset_after_seconds":1e300}}}
+            """#
+        let windows = try CodexUsageDecoder.decode(Data(body.utf8), now: now)
+        #expect(windows.map(\.label) == ["primary_window", "7d"])
+        #expect(windows.map(\.windowLength) == [nil, .seconds(604_800)])
+        #expect(windows.map(\.resetsAt) == [nil, nil])
+    }
 }

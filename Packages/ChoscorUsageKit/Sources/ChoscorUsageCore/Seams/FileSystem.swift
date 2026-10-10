@@ -9,6 +9,13 @@ public protocol FileSystem: Sendable {
     /// Returns the file's bytes, or `nil` when it is missing or unreadable.
     func contents(atPath path: String) -> Data?
 
+    /// Returns up to `length` bytes of the file starting at byte `offset` (fewer at the end of the
+    /// file), or `nil` when it is missing or unreadable. Lets large logs be read from the tail.
+    func contents(atPath path: String, offset: Int, length: Int) -> Data?
+
+    /// Returns the file's size in bytes, or `nil` when it is missing or unreadable.
+    func fileSize(atPath path: String) -> Int?
+
     /// Returns the names of the entries in a directory, or an empty array.
     func directoryEntries(atPath path: String) -> [String]
 
