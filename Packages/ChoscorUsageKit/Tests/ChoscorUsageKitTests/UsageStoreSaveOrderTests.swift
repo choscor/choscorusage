@@ -1,6 +1,5 @@
 // Tests that overlapping refresh saves reach disk in the order they started.
 import ChoscorUsageCore
-import ChoscorUsageProviders
 import ChoscorUsageTestSupport
 import Foundation
 import Synchronization
