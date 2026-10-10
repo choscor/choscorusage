@@ -43,6 +43,12 @@ public final class UsageStore {
             minimumSpacing: dependencies.minimumFetchSpacing)
     }
 
+    /// The timer task holds the store only weakly, so it would otherwise outlive it and keep
+    /// waking forever.
+    isolated deinit {
+        timer?.cancel()
+    }
+
     /// Every profile's usage in user order; profiles not yet refreshed are `notLoaded`.
     public var usages: [ProfileUsage] {
         profiles.map { profile in
@@ -137,7 +143,7 @@ public final class UsageStore {
         await finishRefresh()
     }
 
-    /// Waits until queued fetches finish and queued profile writes reach disk.
+    /// Waits until queued fetches finish and queued profile and result writes reach disk.
     public func flush() async {
         await pendingFetch?.value
         await pendingWrite?.value
@@ -197,7 +203,21 @@ public final class UsageStore {
         }
     }
 
+    /// Saves join the profile-write chain, and each reads the newest results only when its turn
+    /// comes, so a save that started later always lands last; otherwise an overlapping refresh
+    /// at a lower priority could overwrite newer snapshots and ledger state with older ones.
     private func saveResults() async {
+        let previous = pendingWrite
+        weak let store = self
+        let save = Task {
+            await previous?.value
+            await store?.writeResults()
+        }
+        pendingWrite = save
+        await save.value
+    }
+
+    private func writeResults() async {
         let snapshots = await refresher.lastGoodSnapshots
         do {
             try await persistence.save(snapshots: snapshots, ledger: ledger)

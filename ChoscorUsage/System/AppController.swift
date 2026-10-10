@@ -26,6 +26,17 @@ final class AppController {
         Task { await launch() }
     }
 
+    /// The ticker and observers hold the controller only weakly, so they would otherwise outlive it.
+    isolated deinit {
+        labelTicker?.cancel()
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
+        if let menuObserver {
+            NotificationCenter.default.removeObserver(menuObserver)
+        }
+    }
+
     /// Requests notification permission when the user turns an alert kind on.
     func notificationsToggled(_ enabled: Bool) {
         guard enabled else {
