@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## [0.1.1] - 2026-10-10
+
+### Improvements
+
+- ChoscorUsage reads each Claude Code token through the macOS `security` tool. Usually, macOS does not show a Keychain prompt again after Claude Code renews the token.
+- ChoscorUsage keeps each Claude Code token in memory until it expires or the usage service rejects it. Retry reads the token again.
+- Automatic refreshes do not read the Keychain directly. If a Claude Code profile needs Keychain access, click Refresh Now or Retry.
+- Profile rows are shorter. Each window shows its reset time in parentheses, for example `5h 4% (4h35m)`. A bullet (•) separates the windows.
+- An expired Claude token does not show at the start of a row that has usage windows. The tooltip shows the full message.
+- ChoscorUsage reads at most 4 MiB from the end of each Codex session log. This uses less memory for large logs.
+
+### Fixes
+
+- Claude Code profiles do not show windows that have only an internal name.
+- ChoscorUsage ignores reset times more than ten years from now. Incorrect reset times and countdowns do not stop the app.
+- When one Codex value is out of range, ChoscorUsage ignores only that value. The other windows in the response show correctly.
+- An automatic refresh does not replace newer results from a Retry.
+- ChoscorUsage removes the alert history of a window when the usage service does not report that window again.
+
 ## [0.1.0] - 2026-10-09
 
 ### Features
